@@ -1,0 +1,22 @@
+{
+    "name": "madesimple/task-worker",
+    "description": "Generic background task worker library",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Peter Scopes",
+            "email": "peter.scopes@gmail.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.0",
+        "monolog/monolog": "^1.23",
+        "symfony/console": "~3.2"
+    },
+    "autoload": {
+        "psr-4": {
+            "MadeSimple\\TaskWorker\\": "src/"
+        }
+    }
+}
