@@ -3,12 +3,12 @@
 namespace MadeSimple\TaskWorker\Exception;
 
 /**
- * Class TaskRetrievalFailureException
+ * Class QueueConnectionException
  *
  * @package MadeSimple\TaskWorker\Exception
  * @author  Peter Scopes
  */
-class TaskRetrievalFailureException extends \RuntimeException
+class QueueConnectionException extends \RuntimeException
 {
 
 }

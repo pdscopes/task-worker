@@ -11,12 +11,26 @@
     ],
     "require": {
         "php": ">=7.0",
-        "monolog/monolog": "^1.23",
-        "symfony/console": "~3.2"
+        "psr/log": "~1.0"
     },
     "autoload": {
         "psr-4": {
             "MadeSimple\\TaskWorker\\": "src/"
+        }
+    },
+    "suggest": {
+        "symfony/console": "Allows for nice command line commands",
+        "vlucas/phpdotenv": "Simple PHP dot env loader"
+    },
+    "require-dev": {
+        "monolog/monolog": "^1.23",
+        "symfony/console": "~3.2",
+        "vlucas/phpdotenv": "^2.4"
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "MadeSimple\\TaskWorker\\Example\\": "examples/",
+            "MadeSimple\\TaskWorker\\Test\\": "tests/"
         }
     }
 }

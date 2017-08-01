@@ -1,19 +1,21 @@
 <?php
 
-namespace MadeSimple\TaskWorker\Command;
+namespace MadeSimple\TaskWorker\Command\Symfony;
 
 use MadeSimple\TaskWorker\Worker;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
+use Symfony\Component\Console\Logger\ConsoleLogger;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * Class work
+ * Class Restart
  *
- * @package MadeSimple\TaskWorker\Command
+ * @package MadeSimple\TaskWorker\Command\Symfony
  * @author  Peter Scopes
  */
-class Work extends Command
+class Restart extends Command
 {
     /**
      * Configures the current command.
@@ -21,9 +23,10 @@ class Work extends Command
     protected function configure()
     {
         $this
-            ->setName('simple:task-worker:work')
-            ->setDescription('Patiently wait for a task(s) to perform')
-            ->setHelp('This command allows you to start a task worker');
+            ->setName('simple:task-worker:restart')
+            ->setDescription('Inform all task worker to stop after current task is complete')
+            ->setHelp('This command allows you to safely stop all task workers')
+            ->addOption(Worker::OPT_TMP_DIR, 'd', InputOption::VALUE_REQUIRED, 'Location of a temporary directory that the worker can write to', Worker::defaultOptions()[Worker::OPT_TMP_DIR]);
     }
 
     /**
@@ -43,7 +46,9 @@ class Work extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $worker = new Worker();
-        return $worker->run();
+        $logger = new ConsoleLogger($output);
+        $logger->info('Broadcasting restart signal');
+
+        return Worker::restart($input->getOption('tmp-dir')) ? 0 : 0;
     }
 }

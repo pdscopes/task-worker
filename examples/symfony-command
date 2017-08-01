@@ -1,0 +1,19 @@
+#!/usr/bin/env php
+<?php
+
+foreach (array(__DIR__ . '/../../../autoload.php', __DIR__ . '/../vendor/autoload.php') as $file) {
+    if (file_exists($file)) {
+        define('MADESIMPLE_TASK_WORKER_COMPOSER_INSTALL', $file);
+        break;
+    }
+}
+
+require MADESIMPLE_TASK_WORKER_COMPOSER_INSTALL;
+
+use Symfony\Component\Console\Application;
+use MadeSimple\TaskWorker\Command\Symfony as Command;
+
+$application = new Application();
+$application->add(new Command\Work());
+$application->add(new Command\Restart());
+$application->run();
