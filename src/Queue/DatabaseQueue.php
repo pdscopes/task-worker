@@ -108,7 +108,7 @@ class DatabaseQueue implements Queue
     {
         // Update the number of attempts and release the reservation
         $statement = $this->pdo->prepare('UPDATE `'.$this->options[self::OPT_TABLE_NAME].'` SET  `attempts` = :attempts, `reservedAt` = NULL, `payload` = :payload WHERE `id` = :id');
-        $statement->bindValue(':attempts', $task->attempts());
+        $statement->bindValue(':attempts', min($task->attempts(), 255));
         $statement->bindValue(':payload', serialize($task));
         $statement->bindValue(':id', $task->id());
 
