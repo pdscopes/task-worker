@@ -77,8 +77,8 @@ with dev requirements for them to work.
 # External Documentation
 Links to documentation for external dependencies:
 * [PHP Docs](http://php.net/)
-* [Logging PSR-3](http://www.php-fig.org/psr/psr-3/)
-* [Cache PSR-6](http://www.php-fig.org/psr/psr-6/)
+* [Logging PSR-3](http://www.php-fig.org/psr/psr-3/) ([GitHub page](https://github.com/php-fig/log))
+* [Simple Cache PSR-16](http://www.php-fig.org/psr/psr-16/) ([GitHub page](https://github.com/php-fig/simple-cache))
 
 Links to documentation for development only external dependencies:
 * [cache/cache](http://www.php-cache.com/en/latest/)

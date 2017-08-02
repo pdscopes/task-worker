@@ -2,10 +2,10 @@
 
 namespace MadeSimple\TaskWorker;
 
-use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerAwareTrait;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use Psr\SimpleCache\CacheInterface;
 
 /**
  * Class Worker
@@ -48,13 +48,13 @@ class Worker
     /**
      * Broadcast a restart signal to all workers.
      *
-     * @param CacheItemPoolInterface $cache
+     * @param CacheInterface $cache
      *
      * @return bool
      */
-    public static function restart(CacheItemPoolInterface $cache) : bool
+    public static function restart(CacheInterface $cache) : bool
     {
-        return $cache->save($cache->getItem(sha1(self::CACHE_RESTART))->set(time()));
+        return $cache->set(sha1(self::CACHE_RESTART), time());
     }
 
 
@@ -81,10 +81,10 @@ class Worker
     /**
      * TaskWorker constructor.
      *
-     * @param CacheItemPoolInterface $cache
-     * @param LoggerInterface        $logger
+     * @param CacheInterface  $cache
+     * @param LoggerInterface $logger
      */
-    public function __construct(CacheItemPoolInterface $cache, LoggerInterface $logger = null)
+    public function __construct(CacheInterface $cache, LoggerInterface $logger = null)
     {
         $this->setCache($cache);
         $this->setLogger($logger ?? new NullLogger());
@@ -199,7 +199,7 @@ class Worker
     {
         $optMaxTasks = $this->opt(self::OPT_MAX_TASKS);
         $optAlive    = $this->opt(self::OPT_ALIVE);
-        $restartTime = ($item = $this->cache->getItem(sha1(self::CACHE_RESTART)))->isHit() ? $item->get() : 0;
+        $restartTime = $this->cache->get(sha1(self::CACHE_RESTART), 0);
 
         return
             ($optMaxTasks <= 0 || $optMaxTasks > $this->taskCount) &&

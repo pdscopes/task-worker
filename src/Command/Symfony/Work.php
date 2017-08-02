@@ -6,7 +6,7 @@ use Dotenv\Dotenv;
 use MadeSimple\TaskWorker\HasCacheTrait;
 use MadeSimple\TaskWorker\Worker;
 use MadeSimple\TaskWorker\Queue;
-use Psr\Cache\CacheItemPoolInterface;
+use Psr\SimpleCache\CacheInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -26,9 +26,9 @@ class Work extends Command
     /**
      * Work constructor.
      *
-     * @param CacheItemPoolInterface $cache
+     * @param CacheInterface $cache
      */
-    public function __construct(CacheItemPoolInterface $cache)
+    public function __construct(CacheInterface $cache)
     {
         parent::__construct();
         $this->setCache($cache);

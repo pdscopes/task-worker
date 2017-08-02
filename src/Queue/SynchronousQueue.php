@@ -2,7 +2,7 @@
 
 namespace MadeSimple\TaskWorker\Queue;
 
-use MadeSimple\TaskWorker\Cache\NullCacheItemPool;
+use MadeSimple\TaskWorker\Cache\NullCache;
 use MadeSimple\TaskWorker\Queue;
 use MadeSimple\TaskWorker\Task;
 use MadeSimple\TaskWorker\Worker;
@@ -51,7 +51,7 @@ class SynchronousQueue implements Queue
 
         $this->task = $task;
 
-        (new Worker(new NullCacheItemPool(), $this->logger))
+        (new Worker(new NullCache(), $this->logger))
             ->setQueue($this)
             ->setOption(Worker::OPT_REST, 0)
             ->setOption(Worker::OPT_MAX_TASKS, 1)

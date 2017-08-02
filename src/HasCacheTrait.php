@@ -2,7 +2,7 @@
 
 namespace MadeSimple\TaskWorker;
 
-use Psr\Cache\CacheItemPoolInterface;
+use Psr\SimpleCache\CacheInterface;
 
 /**
  * Class HasCacheTrait
@@ -13,14 +13,14 @@ use Psr\Cache\CacheItemPoolInterface;
 trait HasCacheTrait
 {
     /**
-     * @var CacheItemPoolInterface
+     * @var CacheInterface
      */
     private $cache;
 
     /**
-     * @param CacheItemPoolInterface $cache
+     * @param CacheInterface $cache
      */
-    public function setCache(CacheItemPoolInterface $cache)
+    public function setCache(CacheInterface $cache)
     {
         $this->cache = $cache;
     }
