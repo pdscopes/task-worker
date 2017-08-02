@@ -41,4 +41,15 @@ trait HasOptionsTrait
 
         return $this;
     }
+
+    /**
+     * @param string $option
+     * @param mixed  $default
+     *
+     * @return mixed
+     */
+    protected function opt(string $option, $default = null)
+    {
+        return $this->options[$option] ?? $default;
+    }
 }
