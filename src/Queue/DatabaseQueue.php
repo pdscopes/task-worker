@@ -1,6 +1,6 @@
 <?php
 
-namespace MadeSimple\TaskWorker\Database;
+namespace MadeSimple\TaskWorker\Queue;
 
 use MadeSimple\TaskWorker\Exception\QueueConnectionException;
 use MadeSimple\TaskWorker\HasOptionsTrait;
@@ -11,7 +11,7 @@ use Psr\Log\LoggerAwareTrait;
 /**
  * Class DatabaseManager
  *
- * @package MadeSimple\TaskWorker\Database
+ * @package MadeSimple\TaskWorker\Queue
  * @author  Peter Scopes
  */
 class DatabaseQueue implements Queue

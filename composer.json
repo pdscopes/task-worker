@@ -11,6 +11,7 @@
     ],
     "require": {
         "php": ">=7.0",
+        "psr/cache": "~1.0",
         "psr/log": "~1.0"
     },
     "autoload": {
@@ -19,10 +20,12 @@
         }
     },
     "suggest": {
-        "symfony/console": "Allows for nice command line commands",
-        "vlucas/phpdotenv": "Simple PHP dot env loader"
+        "cache/cache": "Library of all the php-cache adapters",
+        "symfony/console": "Symfony console commands more robust CLI",
+        "vlucas/phpdotenv": "Simple dot env (`.env`) loader"
     },
     "require-dev": {
+        "cache/cache": "~1.0",
         "monolog/monolog": "^1.23",
         "symfony/console": "~3.2",
         "vlucas/phpdotenv": "^2.4"

@@ -3,9 +3,10 @@
 namespace MadeSimple\TaskWorker\Command\Symfony;
 
 use Dotenv\Dotenv;
-use MadeSimple\TaskWorker\Database\DatabaseQueue;
-use MadeSimple\TaskWorker\Synchronous\SynchronousQueue;
+use MadeSimple\TaskWorker\HasCacheTrait;
 use MadeSimple\TaskWorker\Worker;
+use MadeSimple\TaskWorker\Queue;
+use Psr\Cache\CacheItemPoolInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -20,6 +21,19 @@ use Symfony\Component\Console\Output\OutputInterface;
  */
 class Work extends Command
 {
+    use HasCacheTrait;
+
+    /**
+     * Work constructor.
+     *
+     * @param CacheItemPoolInterface $cache
+     */
+    public function __construct(CacheItemPoolInterface $cache)
+    {
+        parent::__construct();
+        $this->setCache($cache);
+    }
+
     /**
      * Configures the current command.
      */
@@ -33,8 +47,7 @@ class Work extends Command
             ->addOption(Worker::OPT_SLEEP, 's', InputOption::VALUE_REQUIRED, 'How long, in seconds, to sleep if not tasks are available', Worker::defaultOptions()[Worker::OPT_SLEEP])
             ->addOption(Worker::OPT_ATTEMPTS, 'a', InputOption::VALUE_REQUIRED, 'How long many attempts a task is allowed before being failed (zero is unlimited)', Worker::defaultOptions()[Worker::OPT_ATTEMPTS])
             ->addOption(Worker::OPT_ALIVE, 'l', InputOption::VALUE_REQUIRED, 'How long, in seconds, the worker will stay alive for (zero is unlimited)', Worker::defaultOptions()[Worker::OPT_ALIVE])
-            ->addOption(Worker::OPT_REST, 'r', InputOption::VALUE_REQUIRED, 'How long, in milliseconds, to rest between tasks', Worker::defaultOptions()[Worker::OPT_REST])
-            ->addOption(Worker::OPT_TMP_DIR, 'd', InputOption::VALUE_REQUIRED, 'Location of a temporary directory that the worker can write to', Worker::defaultOptions()[Worker::OPT_TMP_DIR]);
+            ->addOption(Worker::OPT_REST, 'r', InputOption::VALUE_REQUIRED, 'How long, in milliseconds, to rest between tasks', Worker::defaultOptions()[Worker::OPT_REST]);
     }
 
     /**
@@ -60,18 +73,17 @@ class Work extends Command
 
         $logger = new ConsoleLogger($output);
 
-        $worker = new Worker();
-        $worker->setLogger($logger);
+        $worker = new Worker($this->cache, $logger);
         switch (getenv('TASK_WORKER_QUEUE')) {
             case 'database':
                 $pdo = new \PDO('mysql:host=localhost;dbname='  .getenv('QUEUE_DB_DATABASE'), getenv('QUEUE_DB_USERNAME'), getenv('QUEUE_DB_PASSWORD'));
-                $queue = new DatabaseQueue($pdo);
+                $queue = new Queue\DatabaseQueue($pdo);
                 $queue->setLogger($logger);
                 break;
 
             case 'synchronous':
             default:
-                $queue = new SynchronousQueue();
+                $queue = new Queue\SynchronousQueue();
                 break;
         }
         $worker->setQueue($queue);

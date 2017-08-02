@@ -2,10 +2,11 @@
 
 namespace MadeSimple\TaskWorker\Command\Symfony;
 
+use MadeSimple\TaskWorker\HasCacheTrait;
 use MadeSimple\TaskWorker\Worker;
+use Psr\Cache\CacheItemPoolInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Logger\ConsoleLogger;
 use Symfony\Component\Console\Output\OutputInterface;
 
@@ -17,6 +18,19 @@ use Symfony\Component\Console\Output\OutputInterface;
  */
 class Restart extends Command
 {
+    use HasCacheTrait;
+
+    /**
+     * Restart constructor.
+     *
+     * @param CacheItemPoolInterface $cache
+     */
+    public function __construct(CacheItemPoolInterface $cache)
+    {
+        parent::__construct();
+        $this->setCache($cache);
+    }
+
     /**
      * Configures the current command.
      */
@@ -25,8 +39,7 @@ class Restart extends Command
         $this
             ->setName('simple:task-worker:restart')
             ->setDescription('Inform all task worker to stop after current task is complete')
-            ->setHelp('This command allows you to safely stop all task workers')
-            ->addOption(Worker::OPT_TMP_DIR, 'd', InputOption::VALUE_REQUIRED, 'Location of a temporary directory that the worker can write to', Worker::defaultOptions()[Worker::OPT_TMP_DIR]);
+            ->setHelp('This command allows you to safely stop all task workers');
     }
 
     /**
@@ -49,6 +62,6 @@ class Restart extends Command
         $logger = new ConsoleLogger($output);
         $logger->info('Broadcasting restart signal');
 
-        return Worker::restart($input->getOption('tmp-dir')) ? 0 : 0;
+        return Worker::restart($this->cache) ? 0 : 1;
     }
 }

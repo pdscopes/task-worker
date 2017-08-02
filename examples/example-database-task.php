@@ -5,7 +5,7 @@ require __DIR__ . '/../vendor/autoload.php';
 $dotenv = new \Dotenv\Dotenv(__DIR__);
 $dotenv->load();
 
-use MadeSimple\TaskWorker\Database\DatabaseQueue;
+use MadeSimple\TaskWorker\Queue\DatabaseQueue;
 use MadeSimple\TaskWorker\Example\ExampleTask;
 
 

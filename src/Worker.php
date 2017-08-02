@@ -2,6 +2,7 @@
 
 namespace MadeSimple\TaskWorker;
 
+use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerAwareTrait;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -14,7 +15,10 @@ use Psr\Log\NullLogger;
  */
 class Worker
 {
-    use LoggerAwareTrait, HasOptionsTrait;
+    use HasCacheTrait, LoggerAwareTrait, HasOptionsTrait;
+
+    /** Name of the cache key for restarting workers. */
+    const CACHE_RESTART = 'simple-task-worker-restart';
 
     /** Option to set how long, in seconds, to wait if not tasks are in the queue before checking again. */
     const OPT_SLEEP = 'sleep';
@@ -24,8 +28,8 @@ class Worker
     const OPT_ALIVE = 'alive';
     /** Option to set how long, in milliseconds, to rest between tasks. */
     const OPT_REST = 'rest';
-    /** Option to set the location of a temporary directory that the worker can write to. */
-    const OPT_TMP_DIR = 'tmp-dir';
+    /** Option to set maximum number of tasks a worker should perofmr before stopping (zero is unlimited). */
+    const OPT_MAX_TASKS = 'max-tasks';
 
     /**
      * @return array
@@ -33,26 +37,24 @@ class Worker
     public static function defaultOptions() : array
     {
         return [
-            static::OPT_SLEEP    => 3,
-            static::OPT_ATTEMPTS => 0,
-            static::OPT_ALIVE    => 0,
-            static::OPT_REST     => 50,
-            static::OPT_TMP_DIR  => sys_get_temp_dir(),
+            self::OPT_SLEEP     => 3,
+            self::OPT_ATTEMPTS  => 0,
+            self::OPT_ALIVE     => 0,
+            self::OPT_REST      => 50,
+            self::OPT_MAX_TASKS => 0,
         ];
     }
 
     /**
      * Broadcast a restart signal to all workers.
      *
-     * @param null|string $tmpDirectory
+     * @param CacheItemPoolInterface $cache
      *
      * @return bool
      */
-    public static function restart($tmpDirectory = null) : bool
+    public static function restart(CacheItemPoolInterface $cache) : bool
     {
-        $tmpDirectory = $tmpDirectory ?? self::defaultOptions()[self::OPT_TMP_DIR];
-
-        return file_put_contents($tmpDirectory . '/restart', time()) === false;
+        return $cache->save($cache->getItem(sha1(self::CACHE_RESTART))->set(time()));
     }
 
 
@@ -62,31 +64,26 @@ class Worker
     protected $queue;
 
     /**
-     * @var string
+     * @var int
      */
-    protected $pidFile;
-
     protected $startTime;
+
+    /**
+     * @var int
+     */
+    protected $taskCount;
 
     /**
      * TaskWorker constructor.
      *
-     * @param LoggerInterface|null $logger
+     * @param CacheItemPoolInterface $cache
+     * @param LoggerInterface        $logger
      */
-    public function __construct(LoggerInterface $logger = null)
+    public function __construct(CacheItemPoolInterface $cache, LoggerInterface $logger = null)
     {
+        $this->setCache($cache);
         $this->setLogger($logger ?? new NullLogger());
         $this->setOptions(static::defaultOptions());
-    }
-
-    /**
-     * Tidy up after task worker.
-     */
-    public function __destruct()
-    {
-        if ($this->pidFile !== null && file_exists($this->pidFile)) {
-            unlink($this->pidFile);
-        }
     }
 
     /**
@@ -108,6 +105,7 @@ class Worker
     {
         $this->logger->debug('Listening to queue', ['worker' => get_class($this), 'queue' => get_class($this->queue), 'options' => $this->options]);
         $this->startTime = time();
+        $this->taskCount = 1;
 
         try {
             do {
@@ -122,6 +120,7 @@ class Worker
 
                         $task->perform();
                         $this->queue->remove($task);
+                        $this->taskCount++;
                     }
                     catch (\Throwable $throwable) {
                         $this->logger->critical($throwable->getMessage(), ['trace' => $throwable->getTrace()]);
@@ -129,6 +128,7 @@ class Worker
                             $this->logger->critical('Task failed', ['task' => $task]);
                             $task->fail($throwable);
                             $this->queue->fail($task, $throwable);
+                            $this->taskCount++;
                         } else {
                             $this->queue->release($task);
                         }
@@ -159,11 +159,13 @@ class Worker
      */
     protected function shouldContinueWorking(): bool
     {
-        $restartFile = $this->options[self::OPT_TMP_DIR] . '/restart';
-        $restartTime = file_exists($restartFile) ? (int) file_get_contents($restartFile) : 0;
+        $optMaxTasks = $this->options[self::OPT_MAX_TASKS];
+        $optAlive    = $this->options[self::OPT_ALIVE];
+        $restartTime = ($item = $this->cache->getItem(sha1(self::CACHE_RESTART)))->isHit() ? $item->get() : 0;
 
         return
-            ($this->options[self::OPT_ALIVE] <= 0 || $this->options[self::OPT_ALIVE] > round(time() - $this->startTime)) &&
+            ($optMaxTasks <= 0 || $optMaxTasks > $this->taskCount) &&
+            ($optAlive <= 0 || $optAlive > round(time() - $this->startTime)) &&
             ($restartTime === 0 || $restartTime <= $this->startTime);
     }
 }

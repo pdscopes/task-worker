@@ -10,10 +10,13 @@ foreach (array(__DIR__ . '/../../../autoload.php', __DIR__ . '/../vendor/autoloa
 
 require MADESIMPLE_TASK_WORKER_COMPOSER_INSTALL;
 
-use Symfony\Component\Console\Application;
+use Cache\Adapter\Filesystem\FilesystemCachePool;
+use League\Flysystem;
 use MadeSimple\TaskWorker\Command\Symfony as Command;
+use Symfony\Component\Console\Application;
 
+$cachePool   = new FilesystemCachePool(new Flysystem\Filesystem(new Flysystem\Adapter\Local(sys_get_temp_dir())));
 $application = new Application();
-$application->add(new Command\Work());
-$application->add(new Command\Restart());
+$application->add(new Command\Work($cachePool));
+$application->add(new Command\Restart($cachePool));
 $application->run();

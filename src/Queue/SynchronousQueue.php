@@ -1,7 +1,8 @@
 <?php
 
-namespace MadeSimple\TaskWorker\Synchronous;
+namespace MadeSimple\TaskWorker\Queue;
 
+use MadeSimple\TaskWorker\Cache\NullCacheItemPool;
 use MadeSimple\TaskWorker\Queue;
 use MadeSimple\TaskWorker\Task;
 use MadeSimple\TaskWorker\Worker;
@@ -12,7 +13,7 @@ use Psr\Log\NullLogger;
 /**
  * Class SynchronousQueue
  *
- * @package MadeSimple\TaskWorker\Synchronous
+ * @package MadeSimple\TaskWorker\Queue
  * @author  Peter Scopes
  */
 class SynchronousQueue implements Queue
@@ -50,9 +51,10 @@ class SynchronousQueue implements Queue
 
         $this->task = $task;
 
-        (new SynchronousWorker($this->logger))
+        (new Worker(new NullCacheItemPool(), $this->logger))
             ->setQueue($this)
             ->setOption(Worker::OPT_REST, 0)
+            ->setOption(Worker::OPT_MAX_TASKS, 1)
             ->run();
 
         $this->task = null;
