@@ -24,6 +24,7 @@ Available options for Workers are:
 * `OPT_ALIVE`: how long, in seconds, the worker will stay alive for (zero is unlimited)
 * `OPT_REST`: how long, in milliseconds, to rest between tasks
 * `OPT_MAX_TASKS`: the maximum number of tasks a worker should perform before stopping (zero is unlimited)
+* `OPT_UNTIL_EMPTY`: set the worker to stop when the queue it empty
 
 ### Handlers
 Handlers are closures you can add to a worker to help prepare a task to be performed.
