@@ -30,6 +30,8 @@ class Worker
     const OPT_REST = 'rest';
     /** Option to set the maximum number of tasks a worker should perform before stopping (zero is unlimited). */
     const OPT_MAX_TASKS = 'max-tasks';
+    /** Option to set the worker to stop when the queue it empty (boolean 1 or 0). */
+    const OPT_UNTIL_EMPTY = 'until-empty';
 
     /**
      * @return array
@@ -37,11 +39,12 @@ class Worker
     public static function defaultOptions() : array
     {
         return [
-            self::OPT_SLEEP     => 3,
-            self::OPT_ATTEMPTS  => 0,
-            self::OPT_ALIVE     => 0,
-            self::OPT_REST      => 50,
-            self::OPT_MAX_TASKS => 0,
+            self::OPT_SLEEP       => 3,
+            self::OPT_ATTEMPTS    => 0,
+            self::OPT_ALIVE       => 0,
+            self::OPT_REST        => 50,
+            self::OPT_MAX_TASKS   => 0,
+            self::OPT_UNTIL_EMPTY => 0,
         ];
     }
 
@@ -156,12 +159,19 @@ class Worker
                     if ($this->opt(self::OPT_REST) > 0) {
                         usleep(min(1,$this->opt(self::OPT_REST)));
                     }
-                } else {
-                    // Patiently wait for next task to arrive
+                }
+
+                // Should we continue working?
+                if (!$this->shouldContinueWorking($task)) {
+                    break;
+                }
+
+                // Patiently wait for next task to arrive
+                if ($task === null) {
                     sleep(min(1, $this->opt(self::OPT_SLEEP)));
                 }
             }
-            while ($this->shouldContinueWorking());
+            while (true);
         }
         catch (\Throwable $throwable) {
             $this->logger->critical($throwable->getMessage(), ['trace' => $throwable->getTrace()]);
@@ -193,17 +203,20 @@ class Worker
     }
 
     /**
+     * @param Task $task
      * @return bool
      */
-    protected function shouldContinueWorking(): bool
+    protected function shouldContinueWorking(Task $task = null): bool
     {
-        $optMaxTasks = $this->opt(self::OPT_MAX_TASKS);
-        $optAlive    = $this->opt(self::OPT_ALIVE);
-        $restartTime = $this->cache->get(sha1(self::CACHE_RESTART), 0);
+        $optMaxTasks   = $this->opt(self::OPT_MAX_TASKS);
+        $optAlive      = $this->opt(self::OPT_ALIVE);
+        $restartTime   = $this->cache->get(sha1(self::CACHE_RESTART), 0);
+        $optUntilEmpty = $this->opt(self::OPT_UNTIL_EMPTY);
 
         return
             ($optMaxTasks <= 0 || $optMaxTasks > $this->taskCount) &&
             ($optAlive <= 0 || $optAlive > round(time() - $this->startTime)) &&
-            ($restartTime === 0 || $restartTime <= $this->startTime);
+            ($restartTime === 0 || $restartTime <= $this->startTime) &&
+            (!$optUntilEmpty || $task !== null);
     }
 }

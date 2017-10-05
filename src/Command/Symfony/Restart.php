@@ -37,7 +37,7 @@ class Restart extends Command
     protected function configure()
     {
         $this
-            ->setName('simple:task-worker:restart')
+            ->setName('task-worker:restart')
             ->setDescription('Inform all task worker to stop after current task is complete')
             ->setHelp('This command allows you to safely stop all task workers');
     }

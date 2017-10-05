@@ -40,14 +40,16 @@ class Work extends Command
     protected function configure()
     {
         $this
-            ->setName('simple:task-worker:work')
+            ->setName('task-worker:work')
             ->setDescription('Patiently wait for a task(s) to perform')
             ->setHelp('This command allows you to start a task worker')
-            ->addOption('env', 'e', InputOption::VALUE_REQUIRED, 'Dot env file directory', realpath(__DIR__ . '/../../../examples/'))
+            ->addOption('dotenv', 'e', InputOption::VALUE_REQUIRED, 'Load configuration from environment file', '.env')
             ->addOption(Worker::OPT_SLEEP, 's', InputOption::VALUE_REQUIRED, 'How long, in seconds, to sleep if not tasks are available', Worker::defaultOptions()[Worker::OPT_SLEEP])
             ->addOption(Worker::OPT_ATTEMPTS, 'a', InputOption::VALUE_REQUIRED, 'How long many attempts a task is allowed before being failed (zero is unlimited)', Worker::defaultOptions()[Worker::OPT_ATTEMPTS])
             ->addOption(Worker::OPT_ALIVE, 'l', InputOption::VALUE_REQUIRED, 'How long, in seconds, the worker will stay alive for (zero is unlimited)', Worker::defaultOptions()[Worker::OPT_ALIVE])
-            ->addOption(Worker::OPT_REST, 'r', InputOption::VALUE_REQUIRED, 'How long, in milliseconds, to rest between tasks', Worker::defaultOptions()[Worker::OPT_REST]);
+            ->addOption(Worker::OPT_REST, 'r', InputOption::VALUE_REQUIRED, 'How long, in milliseconds, to rest between tasks', Worker::defaultOptions()[Worker::OPT_REST])
+            ->addOption(Worker::OPT_MAX_TASKS, 'm', InputOption::VALUE_REQUIRED, 'How many tasks should be performed (zero is unlimited)', Worker::defaultOptions()[Worker::OPT_MAX_TASKS])
+            ->addOption(Worker::OPT_UNTIL_EMPTY, 'u', InputOption::VALUE_NONE, 'If the worker should stop when the queue is empty');
     }
 
     /**
@@ -68,7 +70,7 @@ class Work extends Command
     protected function execute(InputInterface $input, OutputInterface $output)
     {
 
-        $dotenv = new Dotenv($input->getOption('env'));
+        $dotenv = new Dotenv(getcwd(), $input->getOption('dotenv'));
         $dotenv->load();
 
         $logger = new ConsoleLogger($output);
