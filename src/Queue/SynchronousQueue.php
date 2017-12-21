@@ -51,7 +51,7 @@ class SynchronousQueue implements Queue
 
         $this->task = $task;
 
-        (new Worker(new NullCache(), $this->logger))
+        (new Worker(NullCache::getInstance(), $this->logger))
             ->setQueue($this)
             ->setOption(Worker::OPT_REST, 0)
             ->setOption(Worker::OPT_MAX_TASKS, 1)

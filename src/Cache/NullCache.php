@@ -13,6 +13,20 @@ use Psr\SimpleCache\CacheInterface;
  */
 class NullCache implements CacheInterface
 {
+    private static $instance = null;
+
+    protected function __construct() {}
+
+    public static function getInstance()
+    {
+        if (self::$instance === null) {
+            self::$instance = new NullCache();
+        }
+        return self::$instance;
+    }
+
+    private function __clone() {}
+    private function __wakeup() {}
 
     /**
      * Fetches a value from the cache.
