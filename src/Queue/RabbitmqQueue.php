@@ -13,11 +13,11 @@ class RabbitmqQueue implements Queue
 {
     use LoggerAwareTrait, HasOptionsTrait;
 
-    const OPT_HOST = 'rabbitmq-host';
-    const OPT_PORT = 'rabbitmq-port';
-    const OPT_USER = 'rabbitmq-user';
-    const OPT_PASS = 'rabbitmq-pass';
-    const OPT_VIRTUAL_HOST = 'rabbitmq-vhost';
+    const OPT_HOST = 'host';
+    const OPT_PORT = 'port';
+    const OPT_USER = 'user';
+    const OPT_PASS = 'pass';
+    const OPT_VIRTUAL_HOST = 'vhost';
 
     public static function defaultOptions()
     {
@@ -59,11 +59,12 @@ class RabbitmqQueue implements Queue
      * RabbitmqQueue constructor.
      *
      * @param string|array $names
+     * @param array $options
      */
-    public function __construct($names)
+    public function __construct($names, array $options = null)
     {
         $this->names = (array) $names;
-        $this->setOptions(self::defaultOptions());
+        $this->setOptions($options ?? self::defaultOptions());
     }
 
     public function __destruct()
@@ -114,7 +115,7 @@ class RabbitmqQueue implements Queue
             $message = $this->channel->basic_get($name, false);
 
             if ($message !== null) {
-                $this->logger->debug(' [x] Received on "' . $name . '": ' . $message->body, $message->delivery_info);
+                $this->logger->debug('Received on "' . $name . '": ' . $message->body, $message->delivery_info);
                 $this->message = $message;
                 return unserialize($this->message->body);
             }
