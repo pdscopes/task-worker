@@ -13,11 +13,11 @@ class RabbitmqQueue implements Queue
 {
     use LoggerAwareTrait, HasOptionsTrait;
 
-    const OPT_HOST = 'host';
-    const OPT_PORT = 'port';
-    const OPT_USER = 'user';
-    const OPT_PASS = 'pass';
-    const OPT_VIRTUAL_HOST = 'vhost';
+    const OPT_HOST = 'rabbitmq-host';
+    const OPT_PORT = 'rabbitmq-port';
+    const OPT_USER = 'rabbitmq-user';
+    const OPT_PASS = 'rabbitmq-pass';
+    const OPT_VIRTUAL_HOST = 'rabbitmq-vhost';
 
     public static function defaultOptions()
     {
@@ -34,6 +34,11 @@ class RabbitmqQueue implements Queue
      * @var array|string[]
      */
     protected $names;
+
+    /**
+     * @var int Position in the queues for reservation
+     */
+    protected $key = 0;
 
     /**
      * @var \PhpAmqpLib\Connection\AMQPConnection
@@ -76,6 +81,11 @@ class RabbitmqQueue implements Queue
      */
     function connect()
     {
+        // Only connect once
+        if ($this->connection) {
+            return $this;
+        }
+
         $this->connection = new AMQPStreamConnection(
             $this->options[self::OPT_HOST],
             $this->options[self::OPT_PORT],
@@ -84,57 +94,87 @@ class RabbitmqQueue implements Queue
             $this->options[self::OPT_VIRTUAL_HOST]
         );
 
-        $tag = null;
         $this->channel = $this->connection->channel();
+        // Limit to 1 prefetch message on this channel (across all queues)
+        $this->channel->basic_qos(null, 1, true);
         foreach ($this->names as $name) {
-            var_dump('declaring queue');
             $this->channel->queue_declare($name, false, true, false, false);
-            var_dump('basic qos');
-            $this->channel->basic_qos(null, 1, null);
-            var_dump('basic consume');
-            $tag = $this->channel->basic_consume($name, $tag ?? '', false, true, false, false);
         }
-
-        var_dump('here');
 
         return $this;
     }
 
     function reserve()
     {
-        return $this->message;
+        $this->connect();
+
+        for ($i=0; $i<count($this->names); $i++) {
+            $name = $this->names[$this->key];
+            $this->key = ($this->key + 1) % count($this->names);
+            $message = $this->channel->basic_get($name, false);
+
+            if ($message !== null) {
+                $this->logger->debug(' [x] Received on "' . $name . '": ' . $message->body, $message->delivery_info);
+                $this->message = $message;
+                return unserialize($this->message->body);
+            }
+        }
+
+        return null;
     }
 
     function release(Task $task): bool
     {
-        $this->message->delivery_info['channel']->basic_nack($this->message->delivery_info['delivery_tag'], false, true);
+        $this->connect();
+
+        $this->channel->basic_nack($this->message->delivery_info['delivery_tag'], false, true);
 
         return true;
     }
 
     function add(Task $task): bool
     {
+        $this->connect();
+
         $message = new AMQPMessage(serialize($task), [
             'delivery_mode' => AMQPMessage::DELIVERY_MODE_PERSISTENT,
         ]);
-        $this->channel->basic_publish($message, '', $task->queue());
+
+        if ($task->delay() > 0) {
+            $queue = 'delayed_' . $task->delay() . '_' . $task->queue();
+            $this->channel->queue_declare(
+                $queue,
+                false,
+                true,
+                false,
+                false,
+                false,
+                [
+                    'x-message-ttl' => ['I', $task->delay() * 1000],
+                    'x-dead-letter-exchange' => ['S', ''],
+                    'x-dead-letter-routing-key' => ['S', $task->queue()],
+                ]
+            );
+            $this->channel->basic_publish($message, '', $queue);
+        } else {
+            $this->channel->basic_publish($message, '', $task->queue());
+        }
 
         return true;
     }
 
     function remove(Task $task): bool
     {
-        $this->message->delivery_info['channel']->basic_ack($this->message->delivery_info['delivery_tag']);
+        $this->connect();
+
+        $this->channel->basic_ack($this->message->delivery_info['delivery_tag']);
         return true;
     }
 
     function fail(Task $task, \Throwable $throwable)
     {
-        $this->message->delivery_info['channel']->basic_nack($this->message->delivery_info['delivery_tag'], false, false);
-    }
+        $this->connect();
 
-    function receive($message)
-    {
-        $this->message = $message;
+        $this->channel->basic_nack($this->message->delivery_info['delivery_tag'], false, false);
     }
 }

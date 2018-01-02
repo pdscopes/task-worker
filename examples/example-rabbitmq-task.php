@@ -30,10 +30,10 @@ if (!empty($options['q']) || !empty($options['queue'])) {
 // Created the queue
 $queue = (new RabbitmqQueue(['task_queue1', 'task_queue2']))
     ->setOptions([
-        RabbitmqQueue::OPT_PORT => '5672',
-        RabbitmqQueue::OPT_USER => 'admin',
-        RabbitmqQueue::OPT_PASS => 'password',
-        RabbitmqQueue::OPT_VIRTUAL_HOST => '/',
+        RabbitmqQueue::OPT_HOST => getenv('QUEUE_RABBITMQ_HOST'),
+        RabbitmqQueue::OPT_PORT => getenv('QUEUE_RABBITMQ_PORT'),
+        RabbitmqQueue::OPT_USER => getenv('QUEUE_RABBITMQ_USER'),
+        RabbitmqQueue::OPT_PASS => getenv('QUEUE_RABBITMQ_PASS'),
+        RabbitmqQueue::OPT_VIRTUAL_HOST => getenv('QUEUE_RABBITMQ_VHOST'),
     ])
-    ->connect()
     ->add($task);

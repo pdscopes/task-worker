@@ -38,7 +38,7 @@ function (Task $task) {
 ```
 
 ## Queues
-There are currently two types of queues supported: database and synchronous.
+There are currently two types of queues supported: database, RabbitMQ, and synchronous.
 Custom queues can be created and must implement the Queue interface.
 
 ### Database
@@ -60,9 +60,22 @@ CREATE TABLE `worker_task` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 ```
 
-### Options
+#### Options
 Available options for the DatabaseQueue are:
 * `OPT_TABLE_NAME`: the name of the table to read tasks from
+
+### RabbitMQ
+The RabbitMQ queue uses the `"php-amqplib/php-amqplib": "^2.7"` library to connect to a RabbitMQ instance (or cluster).
+The `default` exchange is used to route tasks to the specified queue.
+Dead letters are used to delay tasks, the queue name is generated as follows: `delayed_<seconds>_<queue_name>`.
+
+#### Options
+Available options for RabbitmqQueue are:
+* `OPT_HOST`: the hostname of RabbitMQ
+* `OPT_PORT`: the port of RabbitMQ
+* `OPT_USER`: the username for RabbitMQ
+* `OPT_PASS`: the password for RabbitMQ
+* `OPT_VIRTUAL_HOST`: the RabbitMQ virtual host
 
 ### Synchronous
 The synchronous queue is a faux queue which immediately performs any task at the
