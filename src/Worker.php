@@ -6,6 +6,7 @@ use Psr\Log\LoggerAwareTrait;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Psr\SimpleCache\CacheInterface;
+use Psr\SimpleCache\InvalidArgumentException;
 
 /**
  * Class Worker
@@ -18,7 +19,7 @@ class Worker
     use HasCacheTrait, LoggerAwareTrait, HasOptionsTrait;
 
     /** Name of the cache key for restarting workers. */
-    const CACHE_RESTART = 'simple-task-worker-restart';
+    const CACHE_RESTART = 'simpleTaskWorkerRestart';
 
     /** Option to set how long, in seconds, to wait if not tasks are in the queue before checking again. */
     const OPT_SLEEP = 'sleep';
@@ -57,7 +58,11 @@ class Worker
      */
     public static function restart(CacheInterface $cache) : bool
     {
-        return $cache->set(sha1(self::CACHE_RESTART), time());
+        try {
+            return $cache->set(self::CACHE_RESTART, time());
+        } catch (InvalidArgumentException $e) {
+            return false;
+        }
     }
 
 
@@ -96,7 +101,6 @@ class Worker
 
     /**
      * @param Queue $queue
-     *
      * @return Worker
      */
     public function setQueue(Queue $queue)
@@ -111,7 +115,6 @@ class Worker
      * that is the task.
      *
      * @param \closure $handler
-     *
      * @return Worker
      */
     public function addHandler(\closure $handler)
@@ -178,6 +181,9 @@ class Worker
 
             return 1;
         }
+        finally {
+            $this->logger->debug('Terminating', ['worker' => get_class($this), 'queue' => get_class($this->queue), 'options' => $this->options]);
+        }
 
         return 0;
     }
@@ -187,7 +193,6 @@ class Worker
      * handlers on the task.
      *
      * @param Task $task
-     *
      * @return Task
      */
     protected function prepare(Task $task) : Task
@@ -203,20 +208,26 @@ class Worker
     }
 
     /**
+     * Determines whether the worker should continue to work.
+     *
      * @param Task $task
      * @return bool
      */
     protected function shouldContinueWorking(Task $task = null): bool
     {
-        $optMaxTasks   = $this->opt(self::OPT_MAX_TASKS);
-        $optAlive      = $this->opt(self::OPT_ALIVE);
-        $restartTime   = $this->cache->get(sha1(self::CACHE_RESTART), 0);
-        $optUntilEmpty = $this->opt(self::OPT_UNTIL_EMPTY);
+        try {
+            $optMaxTasks   = $this->opt(self::OPT_MAX_TASKS);
+            $optAlive      = $this->opt(self::OPT_ALIVE);
+            $restartTime   = $this->cache->get(self::CACHE_RESTART, 0);
+            $optUntilEmpty = $this->opt(self::OPT_UNTIL_EMPTY);
 
-        return
-            ($optMaxTasks <= 0 || $optMaxTasks > $this->taskCount) &&
-            ($optAlive <= 0 || $optAlive > round(time() - $this->startTime)) &&
-            ($restartTime === 0 || $restartTime <= $this->startTime) &&
-            (!$optUntilEmpty || $task !== null);
+            return
+                ($optMaxTasks <= 0 || $optMaxTasks > $this->taskCount)
+                && ($optAlive <= 0 || $optAlive > round(time() - $this->startTime))
+                && ($restartTime === 0 || $restartTime <= $this->startTime)
+                && (!$optUntilEmpty || $task !== null);
+        } catch (InvalidArgumentException $e) {
+            return false;
+        }
     }
 }
