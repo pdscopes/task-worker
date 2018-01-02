@@ -97,6 +97,16 @@ class Work extends Command
                 $queue->setLogger($logger);
                 break;
 
+            case 'redis':
+                $queue = (new Queue\RedisQueue($input->getArgument('queues')))
+                    ->setOptions([
+                        Queue\RedisQueue::OPT_SCHEME => getenv('QUEUE_REDIS_SCHEME'),
+                        Queue\RedisQueue::OPT_HOST => getenv('QUEUE_REDIS_HOST'),
+                        Queue\RedisQueue::OPT_PORT => getenv('QUEUE_REDIS_PORT'),
+                    ]);
+                $queue->setLogger($logger);
+                break;
+
             case 'synchronous':
             default:
                 $queue = new Queue\SynchronousQueue();

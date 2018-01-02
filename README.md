@@ -77,6 +77,15 @@ Available options for RabbitmqQueue are:
 * `OPT_PASS`: the password for RabbitMQ
 * `OPT_VIRTUAL_HOST`: the RabbitMQ virtual host
 
+### Redis
+The Redis queue uses the `"predis/predis": "^1.1"` library to connect to a redis instance.
+
+#### Options
+Available options for RabbitmqQueue are:
+* `OPT_SCHEME`: the redis connection scheme
+* `OPT_HOST`: the redis connection host
+* `OPT_PORT`: the redis connection port
+
 ### Synchronous
 The synchronous queue is a faux queue which immediately performs any task at the
 point it is added. It will respect the delay if set.
