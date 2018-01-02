@@ -19,7 +19,7 @@ class DatabaseQueue implements Queue
     use LoggerAwareTrait, HasOptionsTrait;
 
     /** Option to set the name of the table to read from. */
-    const OPT_TABLE_NAME = 'table-name';
+    const OPT_TABLE_NAME = 'database-table-name';
 
     /**
      * @return array
