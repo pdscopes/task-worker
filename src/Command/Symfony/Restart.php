@@ -10,12 +10,6 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Logger\ConsoleLogger;
 use Symfony\Component\Console\Output\OutputInterface;
 
-/**
- * Class Restart
- *
- * @package MadeSimple\TaskWorker\Command\Symfony
- * @author  Peter Scopes
- */
 class Restart extends Command
 {
     use HasCacheTrait;

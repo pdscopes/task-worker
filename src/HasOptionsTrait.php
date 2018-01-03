@@ -3,11 +3,6 @@
 namespace MadeSimple\TaskWorker;
 
 /**
- * Class HasOptions
- *
- * @package MadeSimple\TaskWorker
- * @author  Peter Scopes
- *
  * @method static array defaultOptions()
  */
 trait HasOptionsTrait

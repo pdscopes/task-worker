@@ -5,10 +5,9 @@ namespace MadeSimple\TaskWorker;
 use Psr\Log\LoggerAwareTrait;
 
 /**
- * Class Task
- *
- * @package MadeSimple\TaskWorker
- * @author  Peter Scopes
+ * @TODO alter how tasks are stored in queues: switch from raw serialize to wrapping in json object to store meta data
+ * @TODO Add extra type of task that can be serialised as raw JSON to be used in other programming languages
+ * @TODO Allow tasks to register themselves a key so that messages coming from other programming languages can be processed
  */
 abstract class Task implements \Serializable
 {

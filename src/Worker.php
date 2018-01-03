@@ -8,12 +8,6 @@ use Psr\Log\NullLogger;
 use Psr\SimpleCache\CacheInterface;
 use Psr\SimpleCache\InvalidArgumentException;
 
-/**
- * Class Worker
- *
- * @package MadeSimple\TaskWorker
- * @author  Peter Scopes
- */
 class Worker
 {
     use HasCacheTrait, LoggerAwareTrait, HasOptionsTrait;

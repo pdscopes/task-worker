@@ -5,12 +5,6 @@ namespace MadeSimple\TaskWorker\Cache;
 use DateInterval;
 use Psr\SimpleCache\CacheInterface;
 
-/**
- * Class NullCache
- *
- * @package MadeSimple\TaskWorker\Cache
- * @author  Peter Scopes
- */
 class NullCache implements CacheInterface
 {
     private static $instance = null;

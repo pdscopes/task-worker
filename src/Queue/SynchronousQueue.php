@@ -10,12 +10,6 @@ use Psr\Log\LoggerAwareTrait;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
-/**
- * Class SynchronousQueue
- *
- * @package MadeSimple\TaskWorker\Queue
- * @author  Peter Scopes
- */
 class SynchronousQueue implements Queue
 {
     use LoggerAwareTrait;

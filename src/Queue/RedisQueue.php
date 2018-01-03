@@ -106,6 +106,7 @@ class RedisQueue implements Queue
     {
         $this->connect();
 
+        // @TODO implement task delay in redis queues
         return $this->client->llen($task->queue()) < $this->client->lpush($task->queue(), $this->serialize($task));
 
     }

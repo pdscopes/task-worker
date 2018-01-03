@@ -8,12 +8,6 @@ use MadeSimple\TaskWorker\Queue;
 use MadeSimple\TaskWorker\Task;
 use Psr\Log\LoggerAwareTrait;
 
-/**
- * Class DatabaseManager
- *
- * @package MadeSimple\TaskWorker\Queue
- * @author  Peter Scopes
- */
 class DatabaseQueue implements Queue
 {
     use LoggerAwareTrait, HasOptionsTrait;

@@ -4,12 +4,6 @@ namespace MadeSimple\TaskWorker;
 
 use MadeSimple\TaskWorker\Exception\QueueConnectionException;
 
-/**
- * Class Queue
- *
- * @package MadeSimple\TaskWorker
- * @author  Peter Scopes
- */
 interface Queue
 {
     /**
