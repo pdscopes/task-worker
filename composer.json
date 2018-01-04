@@ -24,7 +24,8 @@
         "symfony/console": "Symfony console commands more robust CLI",
         "vlucas/phpdotenv": "Simple dot env (`.env`) loader",
         "php-amqplib/php-amqplib": "Allow RabbitMQ Queue",
-        "predis/predis": "Allow Redis Queue"
+        "predis/predis": "Allow Redis Queue",
+        "aws/aws-sdk-php": "Allow AWS Sqs Queue"
     },
     "require-dev": {
         "cache/cache": "~1.0",
@@ -32,7 +33,8 @@
         "symfony/console": "~3.2",
         "vlucas/phpdotenv": "^2.4",
         "php-amqplib/php-amqplib": "^2.7",
-        "predis/predis": "^1.1"
+        "predis/predis": "^1.1",
+        "aws/aws-sdk-php": "^3.48"
     },
     "autoload-dev": {
         "psr-4": {
