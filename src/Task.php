@@ -143,10 +143,14 @@ abstract class Task implements \JsonSerializable, \ArrayAccess
 
     /**
      * Increments the number of attempts this task has had.
+     *
+     * @return Task
      */
     public function incrementAttempts()
     {
         $this->attempts++;
+
+        return $this;
     }
 
     /**

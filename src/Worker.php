@@ -78,7 +78,7 @@ class Worker
     /**
      * @var int
      */
-    protected $taskCount;
+    protected $taskCount = 1;
 
     /**
      * @var array
@@ -230,7 +230,7 @@ class Worker
      * @param Task $task
      * @return Task
      */
-    protected function prepare(Task $task) : Task
+    public function prepare(Task $task) : Task
     {
         $task->setLogger($this->logger);
         $task->incrementAttempts();
@@ -248,7 +248,7 @@ class Worker
      * @param Task $task
      * @return bool
      */
-    protected function shouldContinueWorking(Task $task = null): bool
+    public function shouldContinueWorking(Task $task = null): bool
     {
         try {
             $optMaxTasks   = $this->opt(self::OPT_MAX_TASKS);
