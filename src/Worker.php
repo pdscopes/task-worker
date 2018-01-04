@@ -66,6 +66,11 @@ class Worker
     protected $queue;
 
     /**
+     * @var array|Task[]
+     */
+    protected $register = [];
+
+    /**
      * @var int
      */
     protected $startTime;
@@ -79,6 +84,11 @@ class Worker
      * @var array
      */
     protected $handlers = [];
+
+    /**
+     * @var string
+     */
+    protected $exitReason = '';
 
     /**
      * TaskWorker constructor.
@@ -105,6 +115,25 @@ class Worker
     }
 
     /**
+     * @param array|Task[] $register
+     * @return Worker
+     */
+    public function setRegister(array $register)
+    {
+        $this->register = [];
+        foreach ($register as $key => $value) {
+            if (is_int($key)) {
+                $this->register[$value->register()] = $value;
+            } else {
+                $this->register[$key] = $value;
+            }
+            $value->setLogger($this->logger);
+        }
+
+        return $this;
+    }
+
+    /**
      * Add a closure that is called on every task before it is performed. The closure receives a single argument
      * that is the task.
      *
@@ -123,27 +152,35 @@ class Worker
      */
     public function run(): int
     {
-        $this->logger->debug('Listening to queue', ['worker' => get_class($this), 'queue' => get_class($this->queue), 'options' => $this->options]);
+        $this->logger->debug('Working', ['worker' => get_class($this), 'queue' => get_class($this->queue), 'options' => $this->options]);
         $this->startTime = time();
         $this->taskCount = 1;
 
         try {
             do {
                 // Retrieve next task
-                $task = $this->queue->reserve();
+                $task = $this->queue->reserve($this->register);
 
                 // Perform task
                 if ($task !== null) {
                     try {
+                        $this->logger->info('Performing task', ['identifier' => $task->identifier(), 'class' => get_class($task)]);
                         $this->prepare($task)->perform();
 
+                        $this->logger->info('Performed task', ['identifier' => $task->identifier()]);
                         $this->queue->remove($task);
                         $this->taskCount++;
                     }
                     catch (\Throwable $throwable) {
-                        $this->logger->critical($throwable->getMessage(), ['trace' => $throwable->getTrace()]);
+                        $this->logger->critical('Caught throwable', [
+                            'identifier' => $task->identifier(),
+                            'attempts' => $task->attempts(),
+                            'message' => $throwable->getMessage(),
+                            'trace' => $throwable->getTrace(),
+                        ]);
+
                         if ($this->opt(self::OPT_ATTEMPTS) > 0 && $task->attempts() >= $this->opt(static::OPT_ATTEMPTS)) {
-                            $this->logger->critical('Task failed', ['task' => $task]);
+                            $this->logger->critical('Task failed', ['identifier' => $task->identifier(), 'class' => get_class($task)]);
                             $task->fail($throwable);
                             $this->queue->fail($task, $throwable);
                             $this->taskCount++;
@@ -176,7 +213,11 @@ class Worker
             return 1;
         }
         finally {
-            $this->logger->debug('Terminating', ['worker' => get_class($this), 'queue' => get_class($this->queue), 'options' => $this->options]);
+            $this->logger->debug('Terminating as ' . $this->exitReason, [
+                'worker' => get_class($this),
+                'queue' => get_class($this->queue),
+                'options' => $this->options
+            ]);
         }
 
         return 0;
@@ -215,12 +256,26 @@ class Worker
             $restartTime   = $this->cache->get(self::CACHE_RESTART, 0);
             $optUntilEmpty = $this->opt(self::OPT_UNTIL_EMPTY);
 
-            return
-                ($optMaxTasks <= 0 || $optMaxTasks > $this->taskCount)
-                && ($optAlive <= 0 || $optAlive > round(time() - $this->startTime))
-                && ($restartTime === 0 || $restartTime <= $this->startTime)
-                && (!$optUntilEmpty || $task !== null);
+            if ($optMaxTasks > 0 && $optMaxTasks < $this->taskCount) {
+                $this->exitReason = 'maximum number of tasks reached';
+                return false;
+            }
+            if ($optAlive > 0 && $optAlive <= round(time() - $this->startTime)) {
+                $this->exitReason = 'maximum alive time reached';
+                return false;
+            }
+            if ($restartTime !== 0 && $restartTime > $this->startTime) {
+                $this->exitReason = 'restart signal received';
+                return false;
+            }
+            if ($optUntilEmpty && $task === null) {
+                $this->exitReason = 'queue is now empty';
+                return false;
+            }
+
+            return true;
         } catch (InvalidArgumentException $e) {
+            $this->exitReason = 'cache read failed';
             return false;
         }
     }

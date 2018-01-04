@@ -2,7 +2,6 @@
 
 namespace MadeSimple\TaskWorker\Queue;
 
-use MadeSimple\TaskWorker\HasOptionsTrait;
 use MadeSimple\TaskWorker\Queue;
 use MadeSimple\TaskWorker\Task;
 use Predis\Client;
@@ -10,22 +9,7 @@ use Psr\Log\LoggerAwareTrait;
 
 class RedisQueue implements Queue
 {
-    use LoggerAwareTrait, HasOptionsTrait;
-
-    const OPT_SCHEME = 'scheme';
-    const OPT_HOST = 'host';
-    const OPT_PORT = 'port';
-    const OPT_PATH = 'path';
-
-    static function defaultOptions()
-    {
-        return [
-            self::OPT_SCHEME => 'tcp',
-            self::OPT_HOST => '127.0.0.1',
-            self::OPT_PORT => 6379,
-            self::OPT_PATH => '/tmp/redis.sock',
-        ];
-    }
+    use LoggerAwareTrait;
 
     /**
      * @var array|string[]
@@ -46,12 +30,12 @@ class RedisQueue implements Queue
      * RedisQueue constructor.
      *
      * @param string|array $names
-     * @param array $options
+     * @param Client $client
      */
-    public function __construct($names, array $options = null)
+    public function __construct($names, Client $client)
     {
         $this->names = (array) $names;
-        $this->setOptions($options ?? self::defaultOptions());
+        $this->client = $client;
     }
 
     public function __destruct()
@@ -61,33 +45,28 @@ class RedisQueue implements Queue
         }
     }
 
-    /**
-     * @return static
-     */
-    function connect()
+    function add(Task $task): bool
     {
-        // Only connect once
-        if ($this->client) {
-            return $this;
+        $serialized = $task->serialize();
+
+        // @TODO implement task delay in redis queues
+        if ($this->client->llen($task->queue()) < $this->client->lpush($task->queue(), [$serialized])) {
+            $this->logger->debug('Added task: ' . $serialized);
+            return true;
         }
-
-        $this->client = new Client($this->options);
-
-        return $this;
+        return false;
     }
 
-    function reserve()
+    function reserve(array &$register)
     {
-        $this->connect();
-
         for ($i=0; $i<count($this->names); $i++) {
             $name = $this->names[$this->key];
             $this->key = ($this->key + 1) % count($this->names);
             $message = $this->client->rpoplpush($name, $this->processing($name));
 
             if ($message !== null) {
-                $this->logger->debug('Received on "' . $name . '": ' . $message);
-                return $this->unserialize($message);
+                $this->logger->debug('Reserved task', [$message]);
+                return Task::deserialize($register, $message);
             }
         }
 
@@ -96,47 +75,22 @@ class RedisQueue implements Queue
 
     function release(Task $task): bool
     {
-        $this->connect();
-
-        $this->client->lpush($task->queue(), $this->serialize($task));
-        return $this->client->lrem($this->processing($task->queue()), 1, $task) > 0;
-    }
-
-    function add(Task $task): bool
-    {
-        $this->connect();
-
-        // @TODO implement task delay in redis queues
-        return $this->client->llen($task->queue()) < $this->client->lpush($task->queue(), $this->serialize($task));
-
+        $this->client->lpush($task->queue(), [$task->serialize()]);
+        return $this->client->lrem($this->processing($task->queue()), 1, $task->serialize()) > 0;
     }
 
     function remove(Task $task): bool
     {
-        $this->connect();
-
-        return $this->client->lrem($this->processing($task->queue()), 1, $this->serialize($task)) > 0;
+        return $this->client->lrem($this->processing($task->queue()), 1, $task->serialize()) > 0;
     }
 
     function fail(Task $task, \Throwable $throwable)
     {
-        $this->connect();
-
-        $this->client->lrem($this->processing($task->queue()), 1, $this->serialize($task));
+        $this->client->lrem($this->processing($task->queue()), 1, $task->serialize());
     }
 
     protected function processing($name)
     {
         return $name . '-processing';
-    }
-
-    protected function serialize(Task $task)
-    {
-        return serialize($task);
-    }
-
-    protected function unserialize($item)
-    {
-        return unserialize($item);
     }
 }

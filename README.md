@@ -8,6 +8,19 @@ is it did not throw an exception, then the task is removed from the queue.
 If the task threw an exception then it is put back into the queue to be performed
 again.
 
+***NOTE*** `Task`'s _must_ be constructable with an empty construction, i.e.: `new ExampleTask()`.
+
+## Installation
+Install via [composer](https://getcomposer.org/):
+```
+{
+    "require": {
+        "madesimple/task-worker": "~2.0"
+    }
+}
+```
+Then run `composer install` or run `composer require madesimple/task-worker`.
+
 ## Worker
 The worker patiently waits for tasks from the queue. Upon receiving a task it
 performs the task, and assuming no exception was thrown, removes the task from
@@ -38,30 +51,27 @@ function (Task $task) {
 ```
 
 ## Queues
-There are currently two types of queues supported: database, RabbitMQ, and synchronous.
-Custom queues can be created and must implement the Queue interface.
+There are currently four types of queues support, `MySQL`, `RabbitMQ`, `Redis`, and `Synchronous`.
+Custom queues can be created and must implement the `Queue` interface. When implementing a Queue the convention is
 
-### Database
-The database queue uses a single table in an MySQL compatible database.
+### MySQL
+The MySQL queue uses a single table in an MySQL compatible database.
 There must exist a table that has the following schema (the name of the table can
-be changed in the DatabaseQueue options):
+be changed in the `MysqlQueue` options):
 ```mysql
 CREATE TABLE `worker_task` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `queue` char(255) DEFAULT '',
   `payload` longtext NOT NULL,
-  `attempts` tinyint(3) unsigned NOT NULL DEFAULT '0',
   `reservedAt` int(10) unsigned DEFAULT NULL,
-  `availableAt` int(10) unsigned NOT NULL,
-  `createdAt` int(10) unsigned NOT NULL,
+  `releasedAt` int(10) unsigned NOT NULL,
   `failedAt` int(10) unsigned DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `queue` (`queue`,`availableAt`)
+  KEY `queue` (`queue`,`releasedAt`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 ```
 
-#### Options
-Available options for the DatabaseQueue are:
+Available options for the MysqlQueue are:
 * `OPT_TABLE_NAME`: the name of the table to read tasks from
 
 ### RabbitMQ
@@ -69,26 +79,13 @@ The RabbitMQ queue uses the `"php-amqplib/php-amqplib": "^2.7"` library to conne
 The `default` exchange is used to route tasks to the specified queue.
 Dead letters are used to delay tasks, the queue name is generated as follows: `delayed_<seconds>_<queue_name>`.
 
-#### Options
-Available options for RabbitmqQueue are:
-* `OPT_HOST`: the hostname of RabbitMQ
-* `OPT_PORT`: the port of RabbitMQ
-* `OPT_USER`: the username for RabbitMQ
-* `OPT_PASS`: the password for RabbitMQ
-* `OPT_VIRTUAL_HOST`: the RabbitMQ virtual host
-
 ### Redis
 The Redis queue uses the `"predis/predis": "^1.1"` library to connect to a redis instance.
-
-#### Options
-Available options for RabbitmqQueue are:
-* `OPT_SCHEME`: the redis connection scheme
-* `OPT_HOST`: the redis connection host
-* `OPT_PORT`: the redis connection port
+The queue names are directly used and a pseudo queue is used called `<queue_name>-processing` to hold the workers current task.
 
 ### Synchronous
-The synchronous queue is a faux queue which immediately performs any task at the
-point it is added. It will respect the delay if set.
+The synchronous queue is a faux queue which immediately performs any task at the point it is added.
+It will respect the delay if set by sleeping the thread that called `add` for the specified time.
 
 ## Commands
 There are some commands already defined for `symfony/console`.
@@ -108,3 +105,5 @@ Links to documentation for development only external dependencies:
 * [monolog/monolog](https://github.com/Seldaek/monolog)
 * [symfony/console](http://symfony.com/doc/current/components/console.html)
 * [vlucas/phpdotenv](https://github.com/vlucas/phpdotenv)
+* [php-amqplib/php-amqplib](https://github.com/php-amqplib/php-amqplib)
+* [predis/predis](https://github.com/nrk/predis)

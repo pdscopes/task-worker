@@ -2,33 +2,15 @@
 
 namespace MadeSimple\TaskWorker\Queue;
 
-use MadeSimple\TaskWorker\HasOptionsTrait;
 use MadeSimple\TaskWorker\Queue;
 use MadeSimple\TaskWorker\Task;
-use PhpAmqpLib\Connection\AMQPStreamConnection;
+use PhpAmqpLib\Connection\AbstractConnection;
 use PhpAmqpLib\Message\AMQPMessage;
 use Psr\Log\LoggerAwareTrait;
 
 class RabbitmqQueue implements Queue
 {
-    use LoggerAwareTrait, HasOptionsTrait;
-
-    const OPT_HOST = 'host';
-    const OPT_PORT = 'port';
-    const OPT_USER = 'user';
-    const OPT_PASS = 'pass';
-    const OPT_VIRTUAL_HOST = 'vhost';
-
-    public static function defaultOptions()
-    {
-        return [
-            self::OPT_HOST => 'localhost',
-            self::OPT_PORT => '5672',
-            self::OPT_USER => 'guest',
-            self::OPT_PASS => 'guest',
-            self::OPT_VIRTUAL_HOST => '/',
-        ];
-    }
+    use LoggerAwareTrait;
 
     /**
      * @var array|string[]
@@ -41,7 +23,7 @@ class RabbitmqQueue implements Queue
     protected $key = 0;
 
     /**
-     * @var \PhpAmqpLib\Connection\AMQPConnection
+     * @var \PhpAmqpLib\Connection\AbstractConnection
      */
     protected $connection;
 
@@ -59,12 +41,14 @@ class RabbitmqQueue implements Queue
      * RabbitmqQueue constructor.
      *
      * @param string|array $names
-     * @param array $options
+     * @param \PhpAmqpLib\Connection\AbstractConnection $connection
      */
-    public function __construct($names, array $options = null)
+    public function __construct($names, AbstractConnection $connection)
     {
         $this->names = (array) $names;
-        $this->setOptions($options ?? self::defaultOptions());
+        $this->connection = $connection;
+
+        $this->declareQueues();
     }
 
     public function __destruct()
@@ -77,70 +61,19 @@ class RabbitmqQueue implements Queue
         }
     }
 
-    /**
-     * @return static
-     */
-    function connect()
+    function declareQueues()
     {
-        // Only connect once
-        if ($this->connection) {
-            return $this;
-        }
-
-        $this->connection = new AMQPStreamConnection(
-            $this->options[self::OPT_HOST],
-            $this->options[self::OPT_PORT],
-            $this->options[self::OPT_USER],
-            $this->options[self::OPT_PASS],
-            $this->options[self::OPT_VIRTUAL_HOST]
-        );
-
         $this->channel = $this->connection->channel();
         // Limit to 1 prefetch message on this channel (across all queues)
         $this->channel->basic_qos(null, 1, true);
         foreach ($this->names as $name) {
             $this->channel->queue_declare($name, false, true, false, false);
         }
-
-        return $this;
-    }
-
-    function reserve()
-    {
-        $this->connect();
-
-        for ($i=0; $i<count($this->names); $i++) {
-            $name = $this->names[$this->key];
-            $this->key = ($this->key + 1) % count($this->names);
-            $message = $this->channel->basic_get($name, false);
-
-            if ($message !== null) {
-                $this->logger->debug('Received on "' . $name . '": ' . $message->body, $message->delivery_info);
-                $this->message = $message;
-                return unserialize($this->message->body);
-            }
-        }
-
-        return null;
-    }
-
-    function release(Task $task): bool
-    {
-        $this->connect();
-
-        $this->channel->basic_nack($this->message->delivery_info['delivery_tag'], false, true);
-
-        return true;
     }
 
     function add(Task $task): bool
     {
-        $this->connect();
-
-        $message = new AMQPMessage(serialize($task), [
-            'delivery_mode' => AMQPMessage::DELIVERY_MODE_PERSISTENT,
-        ]);
-
+        // If there is a delay create a delay queue
         if ($task->delay() > 0) {
             $queue = 'delayed_' . $task->delay() . '_' . $task->queue();
             $this->channel->queue_declare(
@@ -156,26 +89,63 @@ class RabbitmqQueue implements Queue
                     'x-dead-letter-routing-key' => ['S', $task->queue()],
                 ]
             );
-            $this->channel->basic_publish($message, '', $queue);
-        } else {
-            $this->channel->basic_publish($message, '', $task->queue());
         }
 
+        // Publish the message
+        $serialized = $task->serialize();
+        $this->publish($serialized, $queue ?? $task->queue());
+        $this->logger->debug('Added task: ' . $serialized);
+
+        return true;
+    }
+
+    function reserve(array &$register)
+    {
+        for ($i=0; $i<count($this->names); $i++) {
+            $name = $this->names[$this->key];
+            $this->key = ($this->key + 1) % count($this->names);
+            $message = $this->channel->basic_get($name, false);
+
+            if ($message !== null) {
+                $this->message = $message;
+                $this->logger->debug('Reserved task', [
+                    'body' => $this->message->body
+                ]);
+                return Task::deserialize($register, $this->message->body);
+            }
+        }
+
+        return null;
+    }
+
+    function release(Task $task): bool
+    {
+        $this->channel->basic_nack($this->message->delivery_info['delivery_tag'], false, false);
+        $this->publish($task->serialize(), $task->queue());
         return true;
     }
 
     function remove(Task $task): bool
     {
-        $this->connect();
-
         $this->channel->basic_ack($this->message->delivery_info['delivery_tag']);
         return true;
     }
 
     function fail(Task $task, \Throwable $throwable)
     {
-        $this->connect();
-
         $this->channel->basic_nack($this->message->delivery_info['delivery_tag'], false, false);
+    }
+
+    /**
+     * @param string $body
+     * @param string $queue
+     */
+    protected function publish(string $body, string $queue)
+    {
+        $message = new AMQPMessage($body, [
+            'delivery_mode' => AMQPMessage::DELIVERY_MODE_PERSISTENT,
+        ]);
+
+        $this->channel->basic_publish($message, '', $queue);
     }
 }

@@ -6,10 +6,7 @@ use MadeSimple\TaskWorker\Task;
 
 class ExampleTask extends Task
 {
-    /**
-     * @var mixed
-     */
-    public $message;
+//    protected $register = 'example';
 
     /**
      * Report constructor.
@@ -18,11 +15,14 @@ class ExampleTask extends Task
      */
     public function __construct($data = [])
     {
-        $this->message = $data;
+        $this->data = $data;
     }
 
     public  function perform()
     {
-        $this->logger->info('Performing Example Task', ['message' => $this->message]);
+        if ($this['message'] === 'Invalid Message') {
+            throw new \RuntimeException('Invalid Message');
+        }
+        $this->logger->info('Performing Example Task', $this->data);
     }
 }

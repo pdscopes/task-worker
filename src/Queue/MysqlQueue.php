@@ -8,7 +8,7 @@ use MadeSimple\TaskWorker\Queue;
 use MadeSimple\TaskWorker\Task;
 use Psr\Log\LoggerAwareTrait;
 
-class DatabaseQueue implements Queue
+class MysqlQueue implements Queue
 {
     use LoggerAwareTrait, HasOptionsTrait;
 
@@ -36,37 +36,65 @@ class DatabaseQueue implements Queue
     protected $pdo;
 
     /**
-     * DatabaseQueue constructor.
-     *
-     * @param \PDO  $pdo
-     * @param array $names
+     * @var array
      */
-    public function __construct(\PDO $pdo, array $names = [])
+    protected $row;
+
+    /**
+     * MysqlQueue constructor.
+     *
+     * @param string|array $names
+     * @param \PDO  $pdo
+     */
+    public function __construct($names, \PDO $pdo)
     {
+        $this->names = (array) $names;
         $this->pdo   = $pdo;
-        $this->names = $names;
 
         $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
         $this->setOptions(self::defaultOptions());
     }
 
     /**
+     * @param Task $task
+     *
+     * @return bool
+     */
+    function add(Task $task): bool
+    {
+        $serialized = $task->serialize();
+
+        $statement = $this->pdo->prepare('INSERT INTO `'.$this->options[self::OPT_TABLE_NAME].'` (`queue`, `payload`, `releasedAt`) VALUES (:queue, :payload, UNIX_TIMESTAMP() + :delay)');
+        $statement->bindValue(':queue', $task->queue());
+        $statement->bindValue(':payload', $serialized);
+        $statement->bindValue(':delay', $task->delay());
+
+        if ($statement->execute() && $statement->rowCount() === 1) {
+            $this->logger->debug('Added task: ' . $serialized);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * @param array|Task[] $register
      * @return Task
      */
-    function reserve()
+    function reserve(array &$register)
     {
         try {
             // Find the next available task
-            if (empty($this->names)) {
-                $statement =
-                    $this->pdo->prepare('SELECT * FROM `'.$this->options[self::OPT_TABLE_NAME].'` WHERE `availableAt` <= UNIX_TIMESTAMP() AND `reservedAt` IS NULL AND `failedAt` IS NULL ORDER BY `createdAt` ASC LIMIT 1');
-            } else {
-                $queues    = implode(',', array_fill_keys(array_keys($this->names), '?'));
-                $statement =
-                    $this->pdo->prepare('SELECT * FROM `'.$this->options[self::OPT_TABLE_NAME].'` WHERE `queue` IN (' . $queues . ') AND `availableAt` <= UNIX_TIMESTAMP() AND `reservedAt` IS NULL AND `failedAt` IS NULL ORDER BY `createdAt` ASC LIMIT 1');
-                foreach($this->names as $k => $name) {
-                    $statement->bindValue($k+1, $name);
-                }
+            $queues    = substr(str_repeat(',?', count($this->names)), 1);
+            $statement = $this->pdo->prepare(
+                'SELECT * FROM `'.$this->options[self::OPT_TABLE_NAME].'` '.
+                'WHERE `queue` IN (' . $queues . ') '.
+                'AND `releasedAt` <= UNIX_TIMESTAMP() '.
+                'AND `reservedAt` IS NULL '.
+                'AND `failedAt` IS NULL '.
+                'ORDER BY `releasedAt` ASC LIMIT 1'
+            );
+            foreach($this->names as $k => $name) {
+                $statement->bindValue($k+1, $name);
             }
             $statement->execute();
             $row = $statement->fetch(\PDO::FETCH_ASSOC);
@@ -77,14 +105,15 @@ class DatabaseQueue implements Queue
             }
 
             // Un-serialise the task and reserve.
+            $this->row = $row;
             /** @var Task $task */
-            $task = unserialize($row['payload']);
-            $task->setId($row['id']);
-            $task->setAttempts($row['attempts']);
+            $task = Task::deserialize($register, $row['payload']);
 
             $statement = $this->pdo->prepare('UPDATE `'.$this->options[self::OPT_TABLE_NAME].'` SET `reservedAt` = UNIX_TIMESTAMP() WHERE `id` = :id');
-            $statement->bindValue(':id', $task->id());
+            $statement->bindValue(':id', (int) $this->row['id']);
             $statement->execute();
+
+            $this->logger->debug('Reserved task', $row);
 
             return $task;
         }
@@ -101,25 +130,9 @@ class DatabaseQueue implements Queue
     function release(Task $task): bool
     {
         // Update the number of attempts and release the reservation
-        $statement = $this->pdo->prepare('UPDATE `'.$this->options[self::OPT_TABLE_NAME].'` SET  `attempts` = :attempts, `reservedAt` = NULL, `payload` = :payload WHERE `id` = :id');
-        $statement->bindValue(':attempts', min($task->attempts(), 255));
-        $statement->bindValue(':payload', serialize($task));
-        $statement->bindValue(':id', $task->id());
-
-        return $statement->execute() && $statement->rowCount() === 1;
-    }
-
-    /**
-     * @param Task $task
-     *
-     * @return bool
-     */
-    function add(Task $task): bool
-    {
-        $statement = $this->pdo->prepare('INSERT INTO `'.$this->options[self::OPT_TABLE_NAME].'` (`queue`, `payload`, `availableAt`, `createdAt`) VALUES (:queue, :payload, UNIX_TIMESTAMP() + :delay, UNIX_TIMESTAMP())');
-        $statement->bindValue(':queue', $task->queue());
-        $statement->bindValue(':payload', serialize($task));
-        $statement->bindValue(':delay', $task->delay());
+        $statement = $this->pdo->prepare('UPDATE `'.$this->options[self::OPT_TABLE_NAME].'` SET `reservedAt` = NULL, `releasedAt` = UNIX_TIMESTAMP(), `payload` = :payload WHERE `id` = :id');
+        $statement->bindValue(':payload', $task->serialize());
+        $statement->bindValue(':id', (int) $this->row['id']);
 
         return $statement->execute() && $statement->rowCount() === 1;
     }
@@ -132,7 +145,7 @@ class DatabaseQueue implements Queue
     function remove(Task $task): bool
     {
         $statement = $this->pdo->prepare('DELETE FROM `'.$this->options[self::OPT_TABLE_NAME].'` WHERE `id` = :id');
-        $statement->bindValue(':id', $task->id());
+        $statement->bindValue(':id', (int) $this->row['id']);
 
         return $statement->execute() && $statement->rowCount() === 1;
     }
@@ -140,7 +153,7 @@ class DatabaseQueue implements Queue
     function fail(Task $task, \Throwable $throwable)
     {
         $statement = $this->pdo->prepare('UPDATE `'.$this->options[self::OPT_TABLE_NAME].'` SET `failedAt` = UNIX_TIMESTAMP() WHERE `id` = :id');
-        $statement->bindValue(':id', $task->id());
+        $statement->bindValue(':id', (int) $this->row['id']);
 
         $statement->execute();
     }

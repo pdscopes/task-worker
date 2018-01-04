@@ -4,19 +4,19 @@ namespace MadeSimple\TaskWorker;
 
 use Psr\Log\LoggerAwareTrait;
 
-/**
- * @TODO alter how tasks are stored in queues: switch from raw serialize to wrapping in json object to store meta data
- * @TODO Add extra type of task that can be serialised as raw JSON to be used in other programming languages
- * @TODO Allow tasks to register themselves a key so that messages coming from other programming languages can be processed
- */
-abstract class Task implements \Serializable
+abstract class Task implements \JsonSerializable, \ArrayAccess
 {
     use LoggerAwareTrait;
 
     /**
-     * @var int
+     * @var string
      */
-    protected $id;
+    protected $identifier;
+
+    /**
+     * @var string
+     */
+    protected $register;
 
     /**
      * @var string
@@ -34,23 +34,79 @@ abstract class Task implements \Serializable
     protected $delay = 0;
 
     /**
-     * @param int $id
-     *
-     * @return Task
+     * @var array
      */
-    public function setId(int $id)
-    {
-        $this->id = $id;
+    protected $data = [];
 
-        return $this;
+    /**
+     * @param array  $register
+     * @param string $serialized
+     * @return \MadeSimple\TaskWorker\Task
+     */
+    public static function deserialize(array &$register, string $serialized) : Task
+    {
+        $json = json_decode($serialized, true);
+
+        // Check the register
+        $task = $register[$json['register']] ?? null;
+
+        // Attempt to autoload, on success add to register
+        if ($task === null && class_exists($json['register'])) {
+            $register[$json['register']] = ($task = new $json['register']);
+        }
+
+        // Fail if the task hasn't been registered
+        if ($task === null) {
+            throw new \RuntimeException('Task not registered');
+        }
+
+        // Clone and populate the task
+        /** @var Task $task */
+        $task = (clone $register[$json['register']]);
+        $task->identifier = $json['identifier'];
+        $task->register = $json['register'];
+        $task->queue = $json['queue'];
+        $task->attempts = $json['attempts'];
+        $task->data = $json['data'];
+
+        return $task;
+    }
+
+    public function __clone()
+    {
+        // Identifiers must be unique
+        $this->identifier = null;
+        $this->attempts = 0;
     }
 
     /**
-     * @return int
+     * {@inheritdoc}
      */
-    public function id() : int
+    public function jsonSerialize()
     {
-        return (int) $this->id;
+        return [
+            'identifier' => $this->identifier(),
+            'register'   => $this->register(),
+            'queue'      => $this->queue,
+            'attempts'   => $this->attempts,
+            'data'       => $this->data,
+        ];
+    }
+
+    public function identifier() : string
+    {
+        if ($this->identifier === null) {
+            $this->identifier = uniqid(getmypid() . '-');
+        }
+        return $this->identifier;
+    }
+
+    /**
+     * @return string
+     */
+    public function register() : string
+    {
+        return (string) ($this->register ?? static::class);
     }
 
     /**
@@ -122,6 +178,48 @@ abstract class Task implements \Serializable
     }
 
     /**
+     * @param string $key
+     * @param mixed $value
+     * @return static
+     */
+    public function set($key, $value)
+    {
+        $this->data[$key] = $value;
+        return $this;
+    }
+
+    /**
+     * @param string $key
+     * @param mixed $default
+     * @return mixed
+     */
+    public function get($key, $default = null)
+    {
+        return $this->data[$key] ?? $default;
+    }
+
+    public function offsetExists($offset)
+    {
+        return isset($this->data[$offset]);
+    }
+    public function offsetGet($offset)
+    {
+        return $this->data[$offset] ?? null;
+    }
+    public function offsetSet($offset, $value)
+    {
+        if ($offset === null) {
+            $this->data[] = $value;
+        } else {
+            $this->data[$offset] = $value;
+        }
+    }
+    public function offsetUnset($offset)
+    {
+        unset($this->data[$offset]);
+    }
+
+    /**
      * Logic to be performed when a worker receives the task.
      *
      * @return void
@@ -137,18 +235,13 @@ abstract class Task implements \Serializable
     {
     }
 
-    public function serialize()
+    /**
+     * Serialize this task into a string.
+     *
+     * @return string
+     */
+    public function serialize() : string
     {
-        $properties = get_object_vars($this);
-        unset($properties['logger']);
-        unset($properties['attempts']);
-        return serialize($properties);
-    }
-
-    public function unserialize($serialized)
-    {
-        foreach (unserialize($serialized) as $property => $value) {
-            $this->{$property} = $value;
-        }
+        return json_encode($this);
     }
 }

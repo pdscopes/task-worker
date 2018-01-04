@@ -6,6 +6,8 @@ use Dotenv\Dotenv;
 use MadeSimple\TaskWorker\HasCacheTrait;
 use MadeSimple\TaskWorker\Worker;
 use MadeSimple\TaskWorker\Queue;
+use PhpAmqpLib\Connection\AMQPStreamConnection;
+use Predis\Client;
 use Psr\SimpleCache\CacheInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -18,15 +20,19 @@ class Work extends Command
 {
     use HasCacheTrait;
 
+    protected $register;
+
     /**
      * Work constructor.
      *
      * @param CacheInterface $cache
+     * @param array|\MadeSimple\TaskWorker\Task[] $register
      */
-    public function __construct(CacheInterface $cache)
+    public function __construct(CacheInterface $cache, array $register = [])
     {
         parent::__construct();
         $this->setCache($cache);
+        $this->register = $register;
     }
 
     /**
@@ -72,33 +78,33 @@ class Work extends Command
 
         $worker = new Worker($this->cache, $logger);
         switch (getenv('TASK_WORKER_QUEUE')) {
-            case 'database':
-                $pdo = new \PDO('mysql:host=localhost;dbname='  .getenv('QUEUE_DB_DATABASE'), getenv('QUEUE_DB_USERNAME'), getenv('QUEUE_DB_PASSWORD'));
-                $queue = new Queue\DatabaseQueue($pdo, $input->getArgument('queues'));
-                $queue->setOption(Queue\DatabaseQueue::OPT_TABLE_NAME, getenv('QUEUE_DB_TABLE_NAME'));
-                $queue->setLogger($logger);
+            case 'mysql':
+                $pdo = new \PDO(
+                    'mysql:host=localhost;dbname='  .getenv('QUEUE_MYSQL_DATABASE'),
+                    getenv('QUEUE_MYSQL_USERNAME'), getenv('QUEUE_MYSQL_PASSWORD')
+                );
+                $queue = new Queue\MysqlQueue($input->getArgument('queues'), $pdo);
+                $queue->setOption(Queue\MysqlQueue::OPT_TABLE_NAME, getenv('QUEUE_MYSQL_TABLE_NAME'));
                 break;
 
             case 'rabbitmq':
-                $queue = (new Queue\RabbitmqQueue($input->getArgument('queues')))
-                    ->setOptions([
-                        Queue\RabbitmqQueue::OPT_HOST => getenv('QUEUE_RABBITMQ_HOST'),
-                        Queue\RabbitmqQueue::OPT_PORT => getenv('QUEUE_RABBITMQ_PORT'),
-                        Queue\RabbitmqQueue::OPT_USER => getenv('QUEUE_RABBITMQ_USER'),
-                        Queue\RabbitmqQueue::OPT_PASS => getenv('QUEUE_RABBITMQ_PASS'),
-                        Queue\RabbitmqQueue::OPT_VIRTUAL_HOST => getenv('QUEUE_RABBITMQ_VHOST'),
-                    ]);
-                $queue->setLogger($logger);
+                $connection = new AMQPStreamConnection(
+                    getenv('QUEUE_RABBITMQ_HOST'),
+                    getenv('QUEUE_RABBITMQ_PORT'),
+                    getenv('QUEUE_RABBITMQ_USER'),
+                    getenv('QUEUE_RABBITMQ_PASS'),
+                    getenv('QUEUE_RABBITMQ_VHOST')
+                );
+                $queue = new Queue\RabbitmqQueue($input->getArgument('queues'), $connection);
                 break;
 
             case 'redis':
-                $queue = (new Queue\RedisQueue($input->getArgument('queues')))
-                    ->setOptions([
-                        Queue\RedisQueue::OPT_SCHEME => getenv('QUEUE_REDIS_SCHEME'),
-                        Queue\RedisQueue::OPT_HOST => getenv('QUEUE_REDIS_HOST'),
-                        Queue\RedisQueue::OPT_PORT => getenv('QUEUE_REDIS_PORT'),
-                    ]);
-                $queue->setLogger($logger);
+                $client = new Client([
+                    'scheme' => getenv('QUEUE_REDIS_SCHEME'),
+                    'host'   => getenv('QUEUE_REDIS_HOST'),
+                    'port'   => getenv('QUEUE_REDIS_PORT'),
+                ]);
+                $queue = new Queue\RedisQueue($input->getArgument('queues'), $client);
                 break;
 
             case 'synchronous':
@@ -106,7 +112,9 @@ class Work extends Command
                 $queue = new Queue\SynchronousQueue();
                 break;
         }
+        $queue->setLogger($logger);
         $worker->setQueue($queue);
+        $worker->setRegister($this->register);
         $worker->setLogger($logger);
         foreach ($input->getOptions() as $name => $value) {
             $worker->setOption($name, $value);

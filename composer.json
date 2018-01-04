@@ -22,7 +22,9 @@
     "suggest": {
         "cache/cache": "Library of all the php-cache adapters",
         "symfony/console": "Symfony console commands more robust CLI",
-        "vlucas/phpdotenv": "Simple dot env (`.env`) loader"
+        "vlucas/phpdotenv": "Simple dot env (`.env`) loader",
+        "php-amqplib/php-amqplib": "Allow RabbitMQ Queue",
+        "predis/predis": "Allow Redis Queue"
     },
     "require-dev": {
         "cache/cache": "~1.0",

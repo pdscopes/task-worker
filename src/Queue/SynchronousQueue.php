@@ -7,8 +7,6 @@ use MadeSimple\TaskWorker\Queue;
 use MadeSimple\TaskWorker\Task;
 use MadeSimple\TaskWorker\Worker;
 use Psr\Log\LoggerAwareTrait;
-use Psr\Log\LoggerInterface;
-use Psr\Log\NullLogger;
 
 class SynchronousQueue implements Queue
 {
@@ -21,13 +19,8 @@ class SynchronousQueue implements Queue
 
     /**
      * SynchronousQueue constructor.
-     *
-     * @param LoggerInterface $logger
      */
-    public function __construct(LoggerInterface $logger = null)
-    {
-        $this->setLogger($logger ?? new NullLogger());
-    }
+    public function __construct() {}
 
     /**
      * Performs task. If delay is set will delay execution.
@@ -44,6 +37,7 @@ class SynchronousQueue implements Queue
         }
 
         $this->task = $task;
+        $this->logger->debug('Added task: ' . $task->serialize());
 
         (new Worker(NullCache::getInstance(), $this->logger))
             ->setQueue($this)
@@ -56,7 +50,7 @@ class SynchronousQueue implements Queue
         return false;
     }
 
-    function reserve()
+    function reserve(array &$register)
     {
         return $this->task;
     }

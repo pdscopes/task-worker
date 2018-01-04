@@ -19,4 +19,5 @@ $cachePool   = new FilesystemCachePool(new Flysystem\Filesystem(new Flysystem\Ad
 $application = new Application();
 $application->add(new Command\Work($cachePool));
 $application->add(new Command\Restart($cachePool));
+$application->setCatchExceptions(true);
 $application->run();

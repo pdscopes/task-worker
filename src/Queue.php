@@ -22,11 +22,12 @@ interface Queue
      *
      * Should increment the number of attempts on this reserved task.
      *
+     * @param array|Task[] $register
      * @return Task
      *
      * @throws QueueConnectionException
      */
-    function reserve();
+    function reserve(array &$register);
 
     /**
      * Releases the given task back in the queue.
