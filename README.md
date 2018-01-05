@@ -32,7 +32,7 @@ Tasks are serialized in JSON messages when they are put into a queue:
 ```json
 {
     "identifier": "38213-5a4f5275644c2",
-    "register": "\Namespace\ClassName",
+    "register": "\\Namespace\\ClassName",
     "queue": "task_queue",
     "attempts": 0,
     "data": {
