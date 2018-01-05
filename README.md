@@ -10,8 +10,6 @@ is it did not throw an exception, then the task is removed from the queue.
 If the task threw an exception then it is put back into the queue to be performed
 again.
 
-***NOTE*** `Task`'s _must_ be constructable with an empty construction, i.e.: `new ExampleTask()`.
-
 ## Installation
 Install via [composer](https://getcomposer.org/):
 ```
@@ -22,6 +20,42 @@ Install via [composer](https://getcomposer.org/):
 }
 ```
 Then run `composer install` or run `composer require madesimple/task-worker`.
+
+## Task
+***NOTE*** `Task`'s _must_ be constructable with an empty construction, i.e.: `new ExampleTask()`.
+
+Tasks are a combination of the data required and the business logic to perform them.
+Tasks must `extend` the abstract `\MadeSimple\TaskWorker\Task` class and only need implement `public function perform()`.
+Task data can be set using `\ArrayAccess` (e.g. `$task['foo'] ='bar'`) or directly inside the class (e.g. `$this->data['foo'] = 'bar';`).
+
+Tasks are serialized in JSON messages when they are put into a queue:
+```json
+{
+    "identifier": "38213-5a4f5275644c2",
+    "register": "\Namespace\ClassName",
+    "queue": "task_queue",
+    "attempts": 0,
+    "data": {
+        "foo": "bar"
+    }
+}
+```
+
+A Task's `identifier` is automatically generated when `identifier()` is called and is created using `uniqid(getmypid() . '-')`; cloned Tasks ***do not*** share their `identifier` or `attempts`.
+A Task's `register` defaults to `static::class` and is used in `Task::deserialize` to work out which Task class should be used; `deserialize` firstly checks its `register` (passed to it from the `Worker`) for a match, next it attempts to autoload, finally fails if neither of these return a Task.
+You can `register` inside the Task to be any string, just be sure to register the value with the `Worker` if it is not autoloadable:
+```php
+<?php
+class MyTask extends \MadeSimple\TaskWorker\Task
+{
+    protected $register = 'my_task';
+
+    // ... rest of the class goes here
+}
+```
+A Task's `queue` is simply the queue it should be placed on and is generally set `$task->onQueue('queue_name')`.
+A Task's `attempts` is a simple counter which is incremented every time a `Worker` attempts to perform it.
+A Task's `data` should be a JSON serializable set of information required to perform the task.
 
 ## Worker
 The worker patiently waits for tasks from the queue. Upon receiving a task it
