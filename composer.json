@@ -28,6 +28,7 @@
         "aws/aws-sdk-php": "Allow AWS Sqs Queue"
     },
     "require-dev": {
+        "phpunit/phpunit": "^6.5",
         "cache/cache": "~1.0",
         "monolog/monolog": "^1.23",
         "symfony/console": "~3.2",

@@ -47,7 +47,7 @@ class SynchronousQueue implements Queue
 
         $this->task = null;
 
-        return false;
+        return true;
     }
 
     function reserve(array &$register)
@@ -62,10 +62,16 @@ class SynchronousQueue implements Queue
 
     function remove(Task $task): bool
     {
+        if ($this->task === $task) {
+            $this->task = null;
+        }
         return true;
     }
 
     function fail(Task $task, \Throwable $throwable)
     {
+        if ($this->task === $task) {
+            $this->task = null;
+        }
     }
 }
