@@ -29,6 +29,7 @@ class WorkerTest extends TestCase
         $this->mockLogger = $this->getMockBuilder(LoggerInterface::class)->getMock();
     }
 
+
     public function testPrepare()
     {
         $worker = new Worker($this->mockCache, $this->mockLogger);
@@ -64,7 +65,11 @@ class WorkerTest extends TestCase
         $property->setAccessible(true);
         $property->setValue($worker, $values['startTime'] ?? time());
 
-        $this->mockCache->method('get')->willReturn($values['restartTime'] ?? 0);
+        $this->mockCache
+            ->expects($this->once())
+            ->method('get')
+            ->with(Worker::CACHE_RESTART, 0)
+            ->willReturn($values['restartTime'] ?? 0);
 
         $this->assertEquals($shouldContinue, $worker->shouldContinueWorking($task));
 
