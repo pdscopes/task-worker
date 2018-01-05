@@ -1,4 +1,6 @@
 # MadeSimple - Task Worker
+[![Build Status](https://travis-ci.org/pdscopes/task-worker.svg?branch=master)](https://travis-ci.org/pdscopes/task-worker)
+
 The task-worker package is a generic task worker primarily for background tasks.
 
 Workers patiently wait to reserve Tasks from their Queue. When they receive a
