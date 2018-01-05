@@ -13,6 +13,6 @@ class TestTask extends Task
      */
     public function perform()
     {
-        // Do nothing
+        $this['performed'] = true;
     }
 }
