@@ -81,7 +81,10 @@ Dead letters are used to delay tasks, the queue name is generated as follows: `d
 
 ### Redis
 The Redis queue uses the `"predis/predis": "^1.1"` library to connect to a redis instance.
-The queue names are directly used and a pseudo queue is used called `<queue_name>-processing` to hold the workers current task.
+The queue names are directly used and there are the following pseudo queues:
+* `<queue_name>-processing` to hold the workers current task, and
+* `<queue_name>-delayed` to hold delayed tasks.
+
 
 ### Synchronous
 The synchronous queue is a faux queue which immediately performs any task at the point it is added.

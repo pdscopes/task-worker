@@ -49,12 +49,18 @@ class RedisQueue implements Queue
     {
         $serialized = $task->serialize();
 
-        // @TODO implement task delay in redis queues
-        if ($this->client->llen($task->queue()) < $this->client->lpush($task->queue(), [$serialized])) {
-            $this->logger->debug('Added task: ' . $serialized);
-            return true;
+        if ($task->delay() > 0) {
+            $success = $this->client->zadd($this->delayed($task->queue()), time() + $task->delay(), $task->serialize()) > 0;
+        } else {
+            $success = $this->client->llen($task->queue()) < $this->client->lpush($task->queue(), [$serialized]);
         }
-        return false;
+
+        if (!$success) {
+            return false;
+        }
+
+        $this->logger->debug('Added task: ' . $serialized);
+        return true;
     }
 
     function reserve(array &$register)
@@ -62,6 +68,16 @@ class RedisQueue implements Queue
         for ($i=0; $i<count($this->names); $i++) {
             $name = $this->names[$this->key];
             $this->key = ($this->key + 1) % count($this->names);
+
+            // Move all delayed messages now available into the queue
+            $time = time();
+            $delayed = $this->client->zrangebyscore($this->delayed($name), 0, $time);
+            if (!empty($delayed)) {
+                $this->client->lpush($name, $delayed);
+                $this->client->zremrangebyscore($this->delayed($name), 0, $time);
+            }
+
+            // Get the next message
             $message = $this->client->rpoplpush($name, $this->processing($name));
 
             if ($message !== null) {
@@ -92,5 +108,10 @@ class RedisQueue implements Queue
     protected function processing($name)
     {
         return $name . '-processing';
+    }
+
+    protected function delayed($name)
+    {
+        return $name . '-delayed';
     }
 }
