@@ -3,9 +3,6 @@
 require __DIR__ . '/../vendor/autoload.php';
 require __DIR__ . '/helpers.php';
 
-$dotenv = new \Dotenv\Dotenv(__DIR__);
-$dotenv->load();
-
 use MadeSimple\TaskWorker\Example\ExampleTask;
 
 

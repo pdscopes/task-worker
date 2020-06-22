@@ -2,7 +2,6 @@
 
 namespace MadeSimple\TaskWorker\Command\Symfony;
 
-use Dotenv\Dotenv;
 use MadeSimple\TaskWorker\HasCacheTrait;
 use MadeSimple\TaskWorker\Worker;
 use MadeSimple\TaskWorker\Queue;
@@ -44,7 +43,6 @@ class Work extends Command
             ->setName('task-worker:work')
             ->setDescription('Patiently wait for a task(s) to perform')
             ->setHelp('This command allows you to start a task worker')
-            ->addOption('dotenv', 'e', InputOption::VALUE_REQUIRED, 'Load configuration from environment file', '.env')
             ->addOption(Worker::OPT_SLEEP, 's', InputOption::VALUE_REQUIRED, 'How long, in seconds, to sleep if not tasks are available', Worker::defaultOptions()[Worker::OPT_SLEEP])
             ->addOption(Worker::OPT_ATTEMPTS, 'a', InputOption::VALUE_REQUIRED, 'How long many attempts a task is allowed before being failed (zero is unlimited)', Worker::defaultOptions()[Worker::OPT_ATTEMPTS])
             ->addOption(Worker::OPT_ALIVE, 'l', InputOption::VALUE_REQUIRED, 'How long, in seconds, the worker will stay alive for (zero is unlimited)', Worker::defaultOptions()[Worker::OPT_ALIVE])
@@ -71,9 +69,6 @@ class Work extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $dotenv = new Dotenv(getcwd(), $input->getOption('dotenv'));
-        $dotenv->load();
-
         $logger = new ConsoleLogger($output);
 
         $worker = new Worker($this->cache, $logger);

@@ -131,7 +131,12 @@ There are some commands already defined for `symfony/console`.
 
 ## Examples
 There are some examples in the namesake directory. You will need to `composer install`
-with dev requirements for them to work.
+with dev requirements for them to work. Copy `examples/.env.example` to `examples/.env` and update
+the variable values for your environment then the examples can be run using the following command:
+
+```bash
+export $(cat examples/.env | xargs) && php examples/
+```
 
 # External Documentation
 Links to documentation for external dependencies:
@@ -143,6 +148,5 @@ Links to documentation for development only external dependencies:
 * [cache/cache](http://www.php-cache.com/en/latest/)
 * [monolog/monolog](https://github.com/Seldaek/monolog)
 * [symfony/console](http://symfony.com/doc/current/components/console.html)
-* [vlucas/phpdotenv](https://github.com/vlucas/phpdotenv)
 * [php-amqplib/php-amqplib](https://github.com/php-amqplib/php-amqplib)
 * [predis/predis](https://github.com/nrk/predis)
