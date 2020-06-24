@@ -15,8 +15,16 @@ $cachePool = new FilesystemCachePool(new Flysystem\Filesystem(new Flysystem\Adap
 $options = getopt('q:', ['queue:']);
 
 // Created the queue
-$queue = require __DIR__ . '/factory-queue.php';
-$queue->setLogger($logger);
+try {
+    /** @var \MadeSimple\TaskWorker\Queue $queue */
+    $queue = require __DIR__ . '/factory-queue.php';
+} catch (\MadeSimple\TaskWorker\Exception\QueueNameRequiredException $e) {
+    error_log($e->getMessage());
+    exit(1);
+}
+if (method_exists($queue, 'setLogger')) {
+    $queue->setLogger(new \Monolog\Logger('task'));
+}
 
 // Create the worker and run
 $worker = new Worker($cachePool, $logger);

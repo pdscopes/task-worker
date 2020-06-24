@@ -27,8 +27,16 @@ if (!empty($options['d']) || !empty($options['delay'])) {
 }
 
 // Created the queue
-$queue = require __DIR__ . '/factory-queue.php';
-$queue->setLogger(new \Monolog\Logger('task'));
+try {
+    /** @var \MadeSimple\TaskWorker\Queue $queue */
+    $queue = require __DIR__ . '/factory-queue.php';
+} catch (\MadeSimple\TaskWorker\Exception\QueueNameRequiredException $e) {
+    error_log($e->getMessage());
+    exit(1);
+}
+if (method_exists($queue, 'setLogger')) {
+    $queue->setLogger(new \Monolog\Logger('task'));
+}
 
 $count = max(1, $options['c'] ?? ($options['count'] ?? 1));
 for ($i=0; $i < $count; $i++) {

@@ -9,7 +9,7 @@ trait HasCacheTrait
     /**
      * @var CacheInterface
      */
-    private $cache;
+    protected $cache;
 
     /**
      * @param CacheInterface $cache
