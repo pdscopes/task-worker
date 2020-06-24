@@ -75,7 +75,7 @@ class TaskTest extends TestCase
         $task = new TestTask();
         $serialized = $task->serialize();
 
-        $this->assertInternalType('string', $serialized);
+        $this->assertIsString($serialized);
         $this->assertJson($serialized);
     }
 }

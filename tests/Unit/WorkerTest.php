@@ -21,7 +21,7 @@ class WorkerTest extends TestCase
      */
     protected $mockLogger;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         parent::setUp();
 

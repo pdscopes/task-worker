@@ -19,7 +19,7 @@ class MysqlQueueTest extends TestCase
      */
     protected $mockPdoStatement;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         parent::setUp();
 

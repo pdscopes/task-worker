@@ -15,7 +15,7 @@ class RedisQueueTest extends TestCase
      */
     protected $mockClient;
 
-    protected function setUp()
+    protected function setUp(): void
     {
         parent::setUp();
 
@@ -54,7 +54,7 @@ class RedisQueueTest extends TestCase
         $this->mockClient
             ->expects($this->at(0))
             ->method('__call')
-            ->with('zadd', [$task->queue() . '-delayed', time() + $task->delay(), $task->serialize()])
+            ->with('zadd', [$task->queue() . '-delayed', [time() + $task->delay(), $task->serialize()]])
             ->willReturn(1);
 
 
