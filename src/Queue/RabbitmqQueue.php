@@ -2,9 +2,10 @@
 
 namespace MadeSimple\TaskWorker\Queue;
 
+use MadeSimple\TaskWorker\Exception\QueueNameRequiredException;
 use MadeSimple\TaskWorker\Queue;
 use MadeSimple\TaskWorker\Task;
-use PhpAmqpLib\Connection\AbstractConnection;
+use PhpAmqpLib\Connection\AbstractConnection as AmqpConnection;
 use PhpAmqpLib\Message\AMQPMessage;
 use Psr\Log\LoggerAwareTrait;
 
@@ -23,7 +24,7 @@ class RabbitmqQueue implements Queue
     protected $key = 0;
 
     /**
-     * @var \PhpAmqpLib\Connection\AbstractConnection
+     * @var AmqpConnection
      */
     protected $connection;
 
@@ -41,12 +42,16 @@ class RabbitmqQueue implements Queue
      * RabbitmqQueue constructor.
      *
      * @param string|array $names
-     * @param \PhpAmqpLib\Connection\AbstractConnection $connection
+     * @param AmqpConnection $connection
      */
-    public function __construct($names, AbstractConnection $connection)
+    public function __construct($names, AmqpConnection $connection)
     {
         $this->names = (array) $names;
         $this->connection = $connection;
+
+        if (empty($this->names)) {
+            throw new QueueNameRequiredException(static::class . ' requires at least one queue name');
+        }
 
         $this->declareQueues();
     }
@@ -57,7 +62,11 @@ class RabbitmqQueue implements Queue
             $this->channel->close();
         }
         if ($this->connection !== null) {
-            $this->connection->close();
+            try {
+                $this->connection->close();
+            }
+            catch (\Exception $e) {
+            }
         }
     }
 

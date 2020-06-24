@@ -87,10 +87,11 @@ class MysqlQueue implements Queue
             $queues    = substr(str_repeat(',?', count($this->names)), 1);
             $statement = $this->pdo->prepare(
                 'SELECT * FROM `'.$this->options[self::OPT_TABLE_NAME].'` '.
-                'WHERE `queue` IN (' . $queues . ') '.
-                'AND `releasedAt` <= UNIX_TIMESTAMP() '.
-                'AND `reservedAt` IS NULL '.
-                'AND `failedAt` IS NULL '.
+                'WHERE '.
+                (!empty($queues) ? '`queue` IN (' . $queues . ') AND ' : '').
+                '`releasedAt` <= UNIX_TIMESTAMP() AND '.
+                '`reservedAt` IS NULL AND '.
+                '`failedAt` IS NULL '.
                 'ORDER BY `releasedAt` ASC LIMIT 1'
             );
             foreach($this->names as $k => $name) {
@@ -106,7 +107,6 @@ class MysqlQueue implements Queue
 
             // Un-serialise the task and reserve.
             $this->row = $row;
-            /** @var Task $task */
             $task = Task::deserialize($register, $row['payload']);
 
             $statement = $this->pdo->prepare('UPDATE `'.$this->options[self::OPT_TABLE_NAME].'` SET `reservedAt` = UNIX_TIMESTAMP() WHERE `id` = :id');

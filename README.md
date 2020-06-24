@@ -4,8 +4,8 @@
 The task-worker package is a generic task worker primarily for background tasks.
 
 Workers patiently wait to reserve Tasks from their Queue. When they receive a
-task they prepare and perform the task. The logic for performing the task is
-stored in the task object itself. If the task was successfully performed, that
+task they prepare and perform the task. The task object itself stores the logic
+for performing the task. If the task was successfully performed, that
 is it did not throw an exception, then the task is removed from the queue.
 If the task threw an exception then it is put back into the queue to be performed
 again.
@@ -89,6 +89,8 @@ function (Task $task) {
 ## Queues
 There are currently four types of queues support, `MySQL`, `RabbitMQ`, `Redis`, and `Synchronous`.
 Custom queues can be created and must implement the `Queue` interface. When implementing a Queue the convention is
+to provide a list of queue names. An implementation of a Queue can throw a
+`MadeSimple\TaskWorker\Exception\QueueNameRequiredException` if no queue names are provided.
 
 ### MySQL
 The MySQL queue uses a single table in an MySQL compatible database.

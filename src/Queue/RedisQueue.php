@@ -2,6 +2,7 @@
 
 namespace MadeSimple\TaskWorker\Queue;
 
+use MadeSimple\TaskWorker\Exception\QueueNameRequiredException;
 use MadeSimple\TaskWorker\Queue;
 use MadeSimple\TaskWorker\Task;
 use Predis\Client;
@@ -36,6 +37,10 @@ class RedisQueue implements Queue
     {
         $this->names = (array) $names;
         $this->client = $client;
+
+        if (empty($this->names)) {
+            throw new QueueNameRequiredException(static::class . ' requires at least one queue name');
+        }
     }
 
     public function __destruct()
@@ -50,7 +55,7 @@ class RedisQueue implements Queue
         $serialized = $task->serialize();
 
         if ($task->delay() > 0) {
-            $success = $this->client->zadd($this->delayed($task->queue()), time() + $task->delay(), $task->serialize()) > 0;
+            $success = $this->client->zadd($this->delayed($task->queue()), [time() + $task->delay(), $task->serialize()]) > 0;
         } else {
             $success = $this->client->llen($task->queue()) < $this->client->lpush($task->queue(), [$serialized]);
         }
