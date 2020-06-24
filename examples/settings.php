@@ -18,6 +18,6 @@ return [
     'redis' => [
         'scheme' => env('QUEUE_REDIS_SCHEME', 'tcp'),
         'host'   => env('QUEUE_REDIS_HOST', '127.0.0.1'),
-        'port'   => env('QUEUE_REDIS_PORT', 6379),
+        'port'   => (int) env('QUEUE_REDIS_PORT', 6379),
     ],
 ];

@@ -5,6 +5,7 @@ require __DIR__ . '/helpers.php';
 
 use MadeSimple\TaskWorker\Example\ExampleTask;
 
+include __DIR__ . '/env.php';
 
 // Create the task
 $options = getopt('m:q:d:c:', ['message:', 'queue:', 'delay:', 'count:']);

@@ -7,6 +7,8 @@ use Cache\Adapter\Filesystem\FilesystemCachePool;
 use League\Flysystem;
 use MadeSimple\TaskWorker\Worker;
 
+include __DIR__ . '/env.php';
+
 $logger    = new \Monolog\Logger('listen');
 $cachePool = new FilesystemCachePool(new Flysystem\Filesystem(new Flysystem\Adapter\Local(sys_get_temp_dir())));
 
