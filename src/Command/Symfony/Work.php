@@ -79,7 +79,9 @@ class Work extends Command
                     getenv('QUEUE_MYSQL_USERNAME'), getenv('QUEUE_MYSQL_PASSWORD')
                 );
                 $queue = new Queue\MysqlQueue($input->getArgument('queues'), $pdo);
-                $queue->setOption(Queue\MysqlQueue::OPT_TABLE_NAME, getenv('QUEUE_MYSQL_TABLE_NAME'));
+                if (getenv('QUEUE_MYSQL_TABLE_NAME')) {
+                    $queue->setOption(Queue\MysqlQueue::OPT_TABLE_NAME, getenv('QUEUE_MYSQL_TABLE_NAME'));
+                }
                 break;
 
             case 'rabbitmq':
